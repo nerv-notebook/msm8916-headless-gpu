@@ -1,0 +1,56 @@
+From: Antigravity AI & OpenStick Hacker <developer@openstick.org>
+Subject: [PATCH] drm/msm: adreno: allow autonomous headless GPU registration when MDSS is disabled
+
+On headless Qualcomm MSM8916 boards (such as 4G LTE USB modems, portable
+Wi-Fi sticks like UFI001B/C, UZ801 running OpenStick Debian/Alpine), there
+is no physical display panel. The Device Tree Blob (DTB) explicitly marks
+the display controller (`mdss@1a00000`) as `status = "disabled"`.
+
+In the monolithic MSM DRM architecture, `msm_pdev_probe()` only triggers
+when matching a top-level display controller (`qcom,mdss` or `qcom,mdp5`).
+Because MDSS is disabled, the master DRM device is never instantiated,
+leaving `qcom,adreno` in a perpetual waiting state within `component_add()`.
+Consequently, `/dev/dri/cardX` and `/dev/dri/renderD128` are never created,
+leaving the hardware Adreno 306 3D graphics core dormant.
+
+The MSM driver already includes `adreno_device_register_headless()` for
+platforms without an MDP/DPU (originally gated on `"amd,imageon"` for i.MX5).
+This patch extends that mechanism: when probing `adreno`, if `qcom,mdss` is
+either absent or marked unavailable in the device tree, `adreno_probe()`
+autonomously calls `adreno_device_register_headless()`.
+
+This creates a dummy `"msm"` master device that binds the Adreno GPU,
+enabling full OpenGL ES 3.0 / EGL hardware 3D rendering and compute via
+`/dev/dri/renderD128` without requiring an active physical display or KMS pipeline.
+
+Signed-off-by: OpenStick Community Contributor <developer@openstick.org>
+---
+ drivers/gpu/drm/msm/adreno/adreno_device.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/msm/adreno/adreno_device.c b/drivers/gpu/drm/msm/adreno/adreno_device.c
+index 8c728e2..d4e21a8 100644
+--- a/drivers/gpu/drm/msm/adreno/adreno_device.c
++++ b/drivers/gpu/drm/msm/adreno/adreno_device.c
+@@ -561,8 +561,16 @@ static int adreno_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		return ret;
+ 
+-	if (of_device_is_compatible(pdev->dev.of_node, "amd,imageon"))
+-		adreno_device_register_headless();
++	{
++		struct device_node *mdss_node = of_find_compatible_node(NULL, NULL, "qcom,mdss");
++		/* On headless sticks (e.g. OpenStick / UFI dongles), the display controller
++		 * (qcom,mdss) is disabled or absent. In this case, autonomously register
++		 * a dummy msm master device so the Adreno GPU can bind and expose /dev/dri/renderD128.
++		 */
++		if (of_device_is_compatible(pdev->dev.of_node, "amd,imageon") ||
++		    !mdss_node || !of_device_is_available(mdss_node))
++			adreno_device_register_headless();
++		of_node_put(mdss_node);
++	}
+ 
+ 	return 0;
+ }
+-- 
+2.34.1
