@@ -12,6 +12,7 @@ import argparse
 import ctypes
 import threading
 import io
+import socket
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from PIL import Image, ImageDraw
@@ -53,6 +54,8 @@ class GameWorkerEngine:
         self.cpu_temp = "45°C"
         self.active_viewers = 0
         self.last_active_time = time.time()
+        self.udp_sock = None
+        self.udp_thread = None
         
         self._init_egl()
 
@@ -110,8 +113,50 @@ class GameWorkerEngine:
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
 
+    def start_udp_listener(self, port):
+        """Binds low-latency UDP socket on 127.0.0.1:port for microsecond input IPC."""
+        try:
+            self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp_sock.bind(("127.0.0.1", port))
+            self.udp_sock.settimeout(0.5)
+            self.udp_thread = threading.Thread(target=self._udp_loop, daemon=True)
+            self.udp_thread.start()
+            print(f"[Worker] Ultra-fast UDP input listener active on 127.0.0.1:{port}")
+        except Exception as e:
+            print(f"[Worker] UDP input bind error on {port}: {e}", file=sys.stderr)
+
+    def _udp_loop(self):
+        while not self.stop_requested:
+            try:
+                data, _ = self.udp_sock.recvfrom(256)
+                if not data:
+                    continue
+                text = data.decode("ascii", errors="ignore").strip()
+                if text.startswith("SYNC:"):
+                    # Full idempotent controller state synchronization
+                    raw_names = text[5:].split(",") if len(text) > 5 else []
+                    active_set = set(a.strip().upper() for a in raw_names if a.strip())
+                    with self.lock:
+                        for name, bid in JOYPAD_MAP.items():
+                            self.buttons[bid] = 1 if name in active_set else 0
+                        self.fast_forward = bool("FASTFORWARD" in active_set or "FF" in active_set or "SPEED" in active_set)
+                    self.last_active_time = time.time()
+                elif ":" in text:
+                    btn, state_str = text.split(":", 1)
+                    state = 1 if state_str.strip() in ("1", "true", "True") else 0
+                    self.set_button(btn, state)
+            except socket.timeout:
+                continue
+            except Exception:
+                pass
+
     def stop(self):
         self.stop_requested = True
+        if self.udp_sock:
+            try:
+                self.udp_sock.close()
+            except Exception:
+                pass
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=2.0)
         self.running = False
@@ -463,6 +508,7 @@ def main():
 
     engine = GameWorkerEngine(args.rom, system=args.system, title=args.title)
     engine.start()
+    engine.start_udp_listener(args.port)
 
     WorkerHTTPHandler.engine = engine
     server = ReusableThreadingServer(("127.0.0.1", args.port), WorkerHTTPHandler)

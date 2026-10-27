@@ -305,6 +305,91 @@
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      transition: all 0.1s ease;
+    }
+
+    kbd.key-badge.active {
+      background: var(--accent) !important;
+      color: var(--on-accent) !important;
+      border-color: #fff !important;
+      box-shadow: 0 0 14px var(--accent), 0 0 4px #fff !important;
+      transform: translateY(-2px) scale(1.12);
+    }
+
+    /* Gameplay Tip Banner */
+    .gameplay-tip-banner {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(18, 11, 36, 0.94);
+      border: 1px solid rgba(198, 240, 58, 0.4);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(198, 240, 58, 0.15);
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 12px;
+      color: #e2e8f0;
+      z-index: 95;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+      pointer-events: auto;
+      animation: alertPop 0.3s ease;
+      transition: opacity 0.4s ease;
+    }
+    .gameplay-tip-banner b {
+      color: var(--accent);
+    }
+    .gameplay-tip-banner .tip-close-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gameplay-tip-banner .tip-close-btn:hover {
+      color: #ff5b79;
+    }
+
+    /* Live Input Pill for Immediate Feedback */
+    .live-input-pill {
+      position: absolute;
+      bottom: 58px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 6, 22, 0.88);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 20px rgba(198, 240, 58, 0.35);
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      z-index: 85;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+    .live-input-pill.hidden {
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+    }
+    .live-key-tag {
+      background: var(--accent);
+      color: var(--on-accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
     }
 
     .btn-bar-settings {
@@ -873,6 +958,7 @@
 
       <div class="cloud-actions">
         <button class="btn-fast-forward" id="btnFastForward" onclick="toggleFastForward()" title="云端 2x 速度快进 (快捷键: 按住或点按 Tab)">⏩ 2x 快进</button>
+        <button class="btn-ctrl-settings" id="btnToggleTouch" onclick="toggleVirtualTouchpadQuick()" title="切换屏幕虚拟手柄 (鼠标/触控点击)">📱 屏幕手柄</button>
         <button class="btn-ctrl-settings" id="btnControls" onclick="openControlModal()" title="按键说明与自定义控制设置">🎮 按键设置</button>
         <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏沉浸畅玩">⛶ 全屏</button>
         <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="免排队直接在客户端以 WebAssembly 畅玩">⚡ 免排队玩单机</a>
@@ -888,6 +974,16 @@
         <p style="font-size: 15px; font-weight: 600; color: var(--accent);">正在接入随身 WiFi Adreno 306 硬件加速渲染管线...</p>
         <span style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Qualcomm Cortex-A53 4-Core Libretro Native Engine</span>
       </div>
+
+      <!-- Gameplay Tip Banner -->
+      <div class="gameplay-tip-banner" id="gameplayTipBanner">
+        <span>💡</span>
+        <span><b>快速开始：</b> 按键盘 <b>Enter (回车)</b> 开始游戏/跳过片头；<b>空格键 (Space) 或 K</b> 为确认与跳跃；<b>WASD</b> 控制移动。</span>
+        <button class="tip-close-btn" onclick="document.getElementById('gameplayTipBanner').style.display='none'">✕</button>
+      </div>
+
+      <!-- Live Input Pill for Immediate Visual Feedback -->
+      <div class="live-input-pill hidden" id="liveInputPill"></div>
 
       <!-- Turn Alert Pop -->
       <div class="turn-alert hidden" id="turnAlert">
@@ -919,34 +1015,37 @@
       <!-- Desktop Bottom Quick-Key Guide Bar -->
       <div class="desktop-control-bar" id="desktopControlBar">
         <div class="ctrl-group">
-          <span class="ctrl-label">方向</span>
-          <kbd class="key-badge">W</kbd><kbd class="key-badge">A</kbd><kbd class="key-badge">S</kbd><kbd class="key-badge">D</kbd> 或 <kbd class="key-badge">↑</kbd><kbd class="key-badge">↓</kbd><kbd class="key-badge">←</kbd><kbd class="key-badge">→</kbd>
+          <span class="ctrl-label">移动</span>
+          <kbd class="key-badge" data-hud-btn="UP">W/↑</kbd>
+          <kbd class="key-badge" data-hud-btn="LEFT">A/←</kbd>
+          <kbd class="key-badge" data-hud-btn="DOWN">S/↓</kbd>
+          <kbd class="key-badge" data-hud-btn="RIGHT">D/→</kbd>
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">A 键(确认/跳)</span>
-          <kbd class="key-badge" id="hudKeyA">K</kbd> / <kbd class="key-badge">X</kbd>
+          <span class="ctrl-label">A 键(确认/跳跃)</span>
+          <kbd class="key-badge" data-hud-btn="A" id="hudKeyA">空格 / K / X</kbd>
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">B 键(返回/跑)</span>
-          <kbd class="key-badge" id="hudKeyB">J</kbd> / <kbd class="key-badge">Z</kbd>
+          <span class="ctrl-label">B 键(攻击/返回)</span>
+          <kbd class="key-badge" data-hud-btn="B" id="hudKeyB">J / Z</kbd>
         </div>
         <div class="ctrl-group" id="barGbaKeys">
           <span class="ctrl-label">肩键 L/R</span>
-          <kbd class="key-badge">Q</kbd> / <kbd class="key-badge">E</kbd>
+          <kbd class="key-badge" data-hud-btn="L">Q</kbd> / <kbd class="key-badge" data-hud-btn="R">E</kbd>
         </div>
         <div class="ctrl-group">
-          <span class="ctrl-label">开始</span>
-          <kbd class="key-badge">Enter</kbd>
+          <span class="ctrl-label">开始(跳过片头)</span>
+          <kbd class="key-badge" data-hud-btn="START">Enter</kbd>
         </div>
         <div class="ctrl-group">
           <span class="ctrl-label">选择</span>
-          <kbd class="key-badge">Space</kbd>
+          <kbd class="key-badge" data-hud-btn="SELECT">Shift</kbd>
         </div>
         <div class="ctrl-group">
           <span class="ctrl-label">快进</span>
-          <kbd class="key-badge">Tab</kbd>
+          <kbd class="key-badge" data-hud-btn="FASTFORWARD">Tab</kbd>
         </div>
-        <button class="btn-bar-settings" onclick="openControlModal()">🎮 自定义</button>
+        <button class="btn-bar-settings" onclick="openControlModal()">⚙️ 设置</button>
       </div>
 
       <!-- Onscreen Gamepad for Mobile -->
@@ -1216,20 +1315,77 @@
     }
     setInterval(pollStatus, 3000);
 
-    // 5. Ultra-Low Latency Input Dispatch
-    const keyState = {};
+    // 5. Ultra-Low Latency Idempotent Input Dispatch
+    const activeButtons = new Set();
+    const BTN_SHORT_NAMES = {
+      'UP': '↑ 上',
+      'DOWN': '↓ 下',
+      'LEFT': '← 左',
+      'RIGHT': '→ 右',
+      'A': 'A 确认/跳',
+      'B': 'B 攻击/跑',
+      'START': 'Start 开始',
+      'SELECT': 'Select 选择',
+      'L': 'L 肩键',
+      'R': 'R 肩键',
+      'FASTFORWARD': '⏩ 加速'
+    };
 
     function sendInput(btn, state) {
-      if (currentRole !== 'player') return; // Ignore inputs when not player
-      if (keyState[btn] === state) return;
-      keyState[btn] = state;
+      if (currentRole !== 'player') return;
+      if (state) {
+        activeButtons.add(btn);
+      } else {
+        activeButtons.delete(btn);
+      }
+      
+      const activeList = Array.from(activeButtons);
+      renderActiveKeys(activeList);
 
       fetch('/api/cloud/input', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         keepalive: true,
-        body: JSON.stringify({btn: btn, state: state, session_id: sessionId})
+        body: JSON.stringify({
+          btn: btn,
+          state: state,
+          active: activeList,
+          session_id: sessionId
+        })
       }).catch(() => {});
+    }
+
+    function renderActiveKeys(activeList) {
+      // 1. Highlight desktop bottom bar badges
+      document.querySelectorAll('[data-hud-btn]').forEach(el => {
+        const btn = el.dataset.hudBtn;
+        if (activeList.includes(btn)) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      // 2. Highlight virtual gamepad buttons
+      document.querySelectorAll('[data-btn]').forEach(el => {
+        const btn = el.dataset.btn;
+        if (activeList.includes(btn)) {
+          el.classList.add('pressed');
+        } else {
+          el.classList.remove('pressed');
+        }
+      });
+
+      // 3. Update floating live pill
+      const pill = document.getElementById('liveInputPill');
+      if (pill) {
+        if (activeList.length > 0) {
+          pill.innerHTML = `🎮 <b>操控中:</b> ` + activeList.map(b => `<span class="live-key-tag">${BTN_SHORT_NAMES[b] || b}</span>`).join(' ');
+          pill.classList.remove('hidden');
+        } else {
+          pill.classList.add('hidden');
+        }
+      }
     }
 
     // 6. Configurable Keyboard Bindings
@@ -1238,10 +1394,10 @@
       'DOWN': ['KeyS', 'ArrowDown'],
       'LEFT': ['KeyA', 'ArrowLeft'],
       'RIGHT': ['KeyD', 'ArrowRight'],
-      'A': ['KeyK', 'KeyX', 'Space'],
-      'B': ['KeyJ', 'KeyZ'],
-      'START': ['Enter'],
-      'SELECT': ['ShiftRight', 'ShiftLeft'],
+      'A': ['Space', 'KeyK', 'KeyX'],
+      'B': ['KeyJ', 'KeyZ', 'KeyC'],
+      'START': ['Enter', 'Digit1'],
+      'SELECT': ['ShiftRight', 'ShiftLeft', 'Digit5'],
       'L': ['KeyQ'],
       'R': ['KeyE']
     };
@@ -1253,7 +1409,7 @@
       'RIGHT': '十字键 → (右)',
       'A': 'A 键 (确认 / 跳跃 / 对话)',
       'B': 'B 键 (返回 / 攻击 / 跑步)',
-      'START': 'Start (开始 / 暂停)',
+      'START': 'Start (开始 / 暂停 / 跳过片头)',
       'SELECT': 'Select (选择)',
       'L': 'L 键 (左肩键)',
       'R': 'R 键 (右肩键)'
@@ -1265,7 +1421,7 @@
 
     function initKeyConfig() {
       try {
-        const saved = localStorage.getItem('retro_key_config_v2');
+        const saved = localStorage.getItem('retro_key_config_v5');
         if (saved) {
           keyConfig = JSON.parse(saved);
         } else {
@@ -1274,6 +1430,15 @@
       } catch (e) {
         keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
       }
+
+      // Guarantee essentials
+      if (!keyConfig['A']) keyConfig['A'] = ['Space', 'KeyK'];
+      if (!keyConfig['A'].includes('Space')) keyConfig['A'].unshift('Space');
+      if (!keyConfig['START']) keyConfig['START'] = ['Enter'];
+      if (!keyConfig['START'].includes('Enter')) keyConfig['START'].unshift('Enter');
+      if (!keyConfig['B']) keyConfig['B'] = ['KeyJ', 'KeyZ'];
+
+      localStorage.setItem('retro_key_config_v5', JSON.stringify(keyConfig));
       rebuildCodeMap();
       renderKeybindGrid();
     }
@@ -1285,7 +1450,33 @@
           codeToBtn[c] = btn;
         });
       }
+
+      // Add lowercase key fallbacks so no layout or IME state breaks basic navigation
+      const fallbacks = {
+        'w': 'UP', 'arrowup': 'UP',
+        's': 'DOWN', 'arrowdown': 'DOWN',
+        'a': 'LEFT', 'arrowleft': 'LEFT',
+        'd': 'RIGHT', 'arrowright': 'RIGHT',
+        ' ': 'A', 'space': 'A', 'k': 'A', 'x': 'A',
+        'j': 'B', 'z': 'B', 'c': 'B',
+        'enter': 'START', 'return': 'START', '1': 'START',
+        'shift': 'SELECT', '5': 'SELECT',
+        'q': 'L', 'e': 'R'
+      };
+      for (const [k, b] of Object.entries(fallbacks)) {
+        if (!codeToBtn[k]) codeToBtn[k] = b;
+      }
+
       updateQuickHud();
+    }
+
+    function getMappedButton(e) {
+      if (codeToBtn[e.code]) return codeToBtn[e.code];
+      if (e.key) {
+        const k = e.key.toLowerCase();
+        if (codeToBtn[k]) return codeToBtn[k];
+      }
+      return null;
     }
 
     function updateQuickHud() {
@@ -1293,7 +1484,7 @@
       const bKeys = (keyConfig['B'] || []).map(formatCode).join(' / ');
       const hudA = document.getElementById('hudKeyA');
       const hudB = document.getElementById('hudKeyB');
-      if (hudA) hudA.textContent = aKeys || 'K / X / Space';
+      if (hudA) hudA.textContent = aKeys || '空格 / K / X';
       if (hudB) hudB.textContent = bKeys || 'J / Z';
     }
 
@@ -1304,7 +1495,7 @@
       if (c === 'ArrowLeft') return '←';
       if (c === 'ArrowRight') return '→';
       if (c === 'Enter') return 'Enter';
-      if (c === 'Space') return 'Space(空格)';
+      if (c === 'Space') return '空格(Space)';
       if (c === 'ShiftRight') return 'R-Shift';
       if (c === 'ShiftLeft') return 'Shift';
       return c.replace(/^Key/, '').replace(/^Digit/, '');
@@ -1337,7 +1528,7 @@
 
     function resetDefaultKeybindings() {
       keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
-      localStorage.setItem('retro_key_config_v2', JSON.stringify(keyConfig));
+      localStorage.setItem('retro_key_config_v5', JSON.stringify(keyConfig));
       activeListenBtn = null;
       rebuildCodeMap();
       renderKeybindGrid();
@@ -1351,7 +1542,7 @@
       clearTimeout(imeAlertTimer);
       imeAlertTimer = setTimeout(() => {
         el.classList.add('hidden');
-      }, 3500);
+      }, 4000);
     }
 
     // Global Key Listener
@@ -1371,16 +1562,14 @@
           renderKeybindGrid();
           return;
         }
-        // Remove code from other buttons to avoid duplicate triggers
         for (const b in keyConfig) {
           keyConfig[b] = keyConfig[b].filter(c => c !== e.code);
         }
         if (!keyConfig[activeListenBtn]) keyConfig[activeListenBtn] = [];
         keyConfig[activeListenBtn].unshift(e.code);
-        // keep max 3 keys per button
         keyConfig[activeListenBtn] = keyConfig[activeListenBtn].slice(0, 3);
 
-        localStorage.setItem('retro_key_config_v2', JSON.stringify(keyConfig));
+        localStorage.setItem('retro_key_config_v5', JSON.stringify(keyConfig));
         activeListenBtn = null;
         rebuildCodeMap();
         renderKeybindGrid();
@@ -1402,11 +1591,10 @@
       }
 
       if (currentRole !== 'player') return;
-      const btn = codeToBtn[e.code];
+      const btn = getMappedButton(e);
       if (btn) {
         e.preventDefault();
         sendInput(btn, 1);
-        highlightTouchBtn(btn, true);
       }
     });
 
@@ -1418,11 +1606,29 @@
         return;
       }
       if (currentRole !== 'player') return;
-      const btn = codeToBtn[e.code];
+      const btn = getMappedButton(e);
       if (btn) {
         e.preventDefault();
         sendInput(btn, 0);
-        highlightTouchBtn(btn, false);
+      }
+    });
+
+    // Window blur safety - auto-release all held keys!
+    window.addEventListener('blur', () => {
+      if (activeButtons.size > 0) {
+        activeButtons.clear();
+        renderActiveKeys([]);
+        fetch('/api/cloud/input', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          keepalive: true,
+          body: JSON.stringify({
+            btn: 'ALL',
+            state: 0,
+            active: [],
+            session_id: sessionId
+          })
+        }).catch(() => {});
       }
     });
 
@@ -1470,6 +1676,22 @@
         touchControls.classList.remove('force-show');
       }
       localStorage.setItem('retro_force_touch', force ? '1' : '0');
+    }
+
+    function toggleVirtualTouchpadQuick() {
+      const isShowing = touchControls.classList.contains('force-show');
+      toggleVirtualTouchpad(!isShowing);
+      const chk = document.getElementById('toggleTouchScreen');
+      if (chk) chk.checked = !isShowing;
+      const btn = document.getElementById('btnToggleTouch');
+      if (btn) {
+        if (!isShowing) btn.style.background = 'var(--accent)';
+        if (!isShowing) btn.style.color = 'var(--on-accent)';
+        else {
+          btn.style.background = '';
+          btn.style.color = '';
+        }
+      }
     }
 
     function updateTouchOpacity(val) {

@@ -13,6 +13,7 @@ import threading
 import subprocess
 import urllib.request
 import urllib.error
+import socket
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKER_SCRIPT = os.path.join(BASE_DIR, "game_worker.py")
@@ -24,6 +25,9 @@ class SlotManager:
         self.idle_timeout_sec = idle_timeout_sec
         self.max_turn_sec = max_turn_sec
         self.dc_timeout_sec = dc_timeout_sec
+        
+        # Fast UDP socket for zero-thread microsecond input forwarding
+        self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
         # slots: {0: None, 1: None}
         self.slots = {i: None for i in range(max_slots)}
@@ -198,14 +202,20 @@ class SlotManager:
             self.waiting_queue = [q for q in self.waiting_queue if q["session_id"] != session_id]
             return True
 
-    def forward_input(self, session_id, btn, state):
+    def forward_input(self, session_id, btn, state, active_buttons=None):
         with self.lock:
             for slot_id, slot in self.slots.items():
                 if slot and slot["session_id"] == session_id:
                     slot["last_input"] = time.time()
                     port = slot["port"]
-                    # Forward non-blocking
-                    threading.Thread(target=self._send_input_http, args=(port, btn, state), daemon=True).start()
+                    try:
+                        if active_buttons is not None:
+                            payload = f"SYNC:{','.join(active_buttons)}".encode("ascii")
+                        else:
+                            payload = f"{btn}:{state}".encode("ascii")
+                        self.udp_sock.sendto(payload, ("127.0.0.1", port))
+                    except Exception:
+                        threading.Thread(target=self._send_input_http, args=(port, btn, state), daemon=True).start()
                     return True
             return False
 

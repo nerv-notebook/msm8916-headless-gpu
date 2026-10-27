@@ -164,6 +164,14 @@ GAME_INFO_OVERRIDE = {
 class RetroHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def log_message(self, format, *args):
+        # Silence high-frequency endpoints to save OpenStick CPU and disk I/O
+        if args and len(args) > 0 and isinstance(args[0], str):
+            first = args[0]
+            if any(noisy in first for noisy in ("/api/cloud/input", "/api/cloud/heartbeat", "/api/cloud/status", "/api/cloud/stream")):
+                return
+        super().log_message(format, *args)
+
     def send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
@@ -451,11 +459,12 @@ class RetroHandler(BaseHTTPRequestHandler):
             self.send_json_response({"status": "ignored"})
             return
         content_len = int(self.headers.get("Content-Length", 0))
-        payload = json.loads(self.rfile.read(content_len).decode("utf-8"))
+        payload = json.loads(self.rfile.read(content_len).decode("utf-8")) if content_len > 0 else {}
         btn = payload.get("btn", "")
         state = int(payload.get("state", 0))
         session_id = payload.get("session_id", None)
-        ok = slot_mgr.forward_input(session_id, btn, state)
+        active = payload.get("active", None)
+        ok = slot_mgr.forward_input(session_id, btn, state, active_buttons=active)
         self.send_json_response({"status": "ok" if ok else "blocked"})
 
     def handle_save_upload(self, game_id):
