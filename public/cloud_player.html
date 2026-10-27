@@ -446,27 +446,28 @@
     }
 
     .keybind-btn {
-      padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
+      padding: 5px 12px;
+      background: #251648;
+      border: 1px solid rgba(198, 240, 58, 0.6);
+      border-radius: 8px;
       color: var(--accent);
-      font-family: monospace;
+      font-family: ui-monospace, SFMono-Regular, monospace;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
-      min-width: 60px;
+      min-width: 80px;
       text-align: center;
       transition: all 0.2s;
     }
     .keybind-btn:hover {
       background: rgba(198, 240, 58, 0.2);
       border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(198, 240, 58, 0.3);
     }
     .keybind-btn.listening {
       background: var(--accent);
       color: var(--on-accent);
-      box-shadow: 0 0 12px var(--accent);
+      box-shadow: 0 0 14px var(--accent);
     }
 
     .settings-row {
@@ -1230,7 +1231,14 @@
 
     function formatCode(c) {
       if (!c) return '';
-      return c.replace(/^Key/, '').replace(/^Arrow/, '↑↓←→ ').replace(/Digit/, '');
+      if (c === 'ArrowUp') return '↑';
+      if (c === 'ArrowDown') return '↓';
+      if (c === 'ArrowLeft') return '←';
+      if (c === 'ArrowRight') return '→';
+      if (c === 'Enter') return 'Enter';
+      if (c === 'Space') return 'Space';
+      if (c === 'ShiftRight') return 'R-Shift';
+      return c.replace(/^Key/, '').replace(/^Digit/, '');
     }
 
     function renderKeybindGrid() {
