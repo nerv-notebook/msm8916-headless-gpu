@@ -139,6 +139,27 @@
       gap: 10px;
     }
 
+    .btn-ctrl-settings, .btn-fullscreen {
+      padding: 6px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--fg);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-ctrl-settings:hover, .btn-fullscreen:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px rgba(198, 240, 58, 0.25);
+    }
+
     .btn-fast-wasm {
       padding: 6px 14px;
       background: rgba(198, 240, 58, 0.12);
@@ -176,9 +197,12 @@
       color: #ff5b79;
     }
 
-    /* Screen Stage */
+    /* Screen Stage - Maximize viewport & preserve retro aspect */
     .screen-stage {
-      flex: 1;
+      flex: 1 1 0;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -188,12 +212,321 @@
     }
 
     .cloud-img {
+      width: 100%;
+      height: 100%;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      box-shadow: 0 0 40px rgba(0, 242, 254, 0.15);
+      box-shadow: 0 0 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(198, 240, 58, 0.12);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .cloud-img.scale-cover {
+      object-fit: cover !important;
+    }
+
+    /* Desktop Bottom Quick-Key Guide Bar */
+    .desktop-control-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 18px;
+      background: rgba(18, 11, 36, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 90;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      pointer-events: auto;
+      transition: opacity 0.3s ease;
+    }
+
+    @media (max-width: 900px), (hover: none) {
+      .desktop-control-bar {
+        display: none !important;
+      }
+    }
+
+    .ctrl-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-label {
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    kbd.key-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-bottom: 2px solid rgba(198, 240, 58, 0.5);
+      border-radius: 5px;
+      color: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .btn-bar-settings {
+      background: rgba(198, 240, 58, 0.15);
+      border: 1px solid rgba(198, 240, 58, 0.4);
+      border-radius: 14px;
+      color: var(--accent);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-bar-settings:hover {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    /* Modal Backdrop & Card */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(7, 3, 16, 0.82);
+      backdrop-filter: blur(14px);
+      z-index: 300;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-backdrop.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal-card {
+      background: #140d28;
+      border: 1px solid rgba(198, 240, 58, 0.3);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(198, 240, 58, 0.15);
+      border-radius: 20px;
+      width: min(96%, 620px);
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: color 0.2s;
+    }
+    .modal-close-btn:hover {
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 20px 22px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .gamepad-status-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+
+    .gamepad-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    .gamepad-dot.online {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .modal-sec-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .keybind-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 12px;
+    }
+
+    @media (max-width: 500px) {
+      .keybind-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .keybind-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .keybind-name {
+      font-size: 13px;
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    .keybind-btn {
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .keybind-btn:hover {
+      background: rgba(198, 240, 58, 0.2);
+      border-color: var(--accent);
+    }
+    .keybind-btn.listening {
+      background: var(--accent);
+      color: var(--on-accent);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .settings-row select, .settings-row input[type="range"] {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Shoulder buttons for GBA on mobile */
+    .shoulder-container {
+      position: absolute;
+      top: 14px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .btn-shoulder {
+      pointer-events: auto;
+      width: 72px;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+      transition: all 0.1s;
+    }
+
+    .btn-shoulder:active, .btn-shoulder.pressed {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
     }
 
     .connecting-overlay {
@@ -354,6 +687,13 @@
       filter: grayscale(0.8);
     }
 
+    .touch-controls.force-show {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 16px 20px 24px;
+    }
+
     @media (max-width: 900px), (hover: none) {
       .touch-controls {
         display: flex;
@@ -484,13 +824,15 @@
       </div>
 
       <div class="cloud-actions">
+        <button class="btn-ctrl-settings" id="btnControls" onclick="openControlModal()" title="按键说明与自定义控制设置">🎮 按键设置</button>
+        <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏沉浸畅玩">⛶ 全屏</button>
         <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="免排队直接在客户端以 WebAssembly 畅玩">⚡ 免排队玩单机</a>
         <a href="/" class="btn-exit" id="btnExit">退出</a>
       </div>
     </header>
 
     <!-- Stage -->
-    <main class="screen-stage">
+    <main class="screen-stage" id="screenStage">
       <!-- Loading Overlay -->
       <div class="connecting-overlay" id="connectingOverlay">
         <div class="connecting-spinner"></div>
@@ -518,10 +860,45 @@
       </div>
 
       <!-- Live MJPEG Stream -->
-      <img id="cloudScreen" class="cloud-img" alt="MSM8916 Cloud Stream" style="display: none;">
+      <img id="cloudScreen" class="cloud-img" alt="MSM8916 Cloud Stream" style="display: none;" ondblclick="toggleFullscreen()" title="双击可进入/退出全屏">
+
+      <!-- Desktop Bottom Quick-Key Guide Bar -->
+      <div class="desktop-control-bar" id="desktopControlBar">
+        <div class="ctrl-group">
+          <span class="ctrl-label">方向</span>
+          <kbd class="key-badge">W</kbd><kbd class="key-badge">A</kbd><kbd class="key-badge">S</kbd><kbd class="key-badge">D</kbd> 或 <kbd class="key-badge">↑</kbd><kbd class="key-badge">↓</kbd><kbd class="key-badge">←</kbd><kbd class="key-badge">→</kbd>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">A 键(确认/跳)</span>
+          <kbd class="key-badge" id="hudKeyA">K</kbd> / <kbd class="key-badge">X</kbd>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">B 键(返回/跑)</span>
+          <kbd class="key-badge" id="hudKeyB">J</kbd> / <kbd class="key-badge">Z</kbd>
+        </div>
+        <div class="ctrl-group" id="barGbaKeys">
+          <span class="ctrl-label">肩键 L/R</span>
+          <kbd class="key-badge">Q</kbd> / <kbd class="key-badge">E</kbd>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">开始</span>
+          <kbd class="key-badge">Enter</kbd>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">选择</span>
+          <kbd class="key-badge">Space</kbd>
+        </div>
+        <button class="btn-bar-settings" onclick="openControlModal()">🎮 自定义</button>
+      </div>
 
       <!-- Onscreen Gamepad for Mobile -->
       <div class="touch-controls controls-locked" id="touchControls">
+        <!-- Shoulder buttons for GBA on mobile -->
+        <div class="shoulder-container" id="shoulderContainer">
+          <button class="btn-shoulder btn-l" data-btn="L">L</button>
+          <button class="btn-shoulder btn-r" data-btn="R">R</button>
+        </div>
+
         <div class="dpad-container">
           <div class="dpad-btn dpad-up" data-btn="UP">▲</div>
           <div class="dpad-btn dpad-down" data-btn="DOWN">▼</div>
@@ -541,6 +918,52 @@
         </div>
       </div>
     </main>
+
+    <!-- Controls & Gamepad Settings Modal -->
+    <div class="modal-backdrop hidden" id="controlModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>🎮 控制与手柄设置</h3>
+          <button class="modal-close-btn" onclick="closeControlModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Gamepad Connection Live Pill -->
+          <div class="gamepad-status-card" id="gamepadStatusCard">
+            <span class="gamepad-dot" id="gamepadDot"></span>
+            <span id="gamepadText">⚪ 未检测到物理手柄 (支持 Xbox / PS / 蓝牙手柄即插即用)</span>
+          </div>
+
+          <!-- Section: Custom Keybindings -->
+          <h4 class="modal-sec-title">⌨️ 键盘键位自定义 (点击任意按键即可重新绑定)</h4>
+          <div class="keybind-grid" id="keybindGrid"></div>
+          <div style="margin-top: 10px;">
+            <button class="btn-bar-settings" onclick="resetDefaultKeybindings()">恢复默认键位</button>
+          </div>
+
+          <!-- Section: Screen & Touch Options -->
+          <h4 class="modal-sec-title" style="margin-top: 20px;">📱 虚拟按键与屏幕显示</h4>
+          <div class="settings-row">
+            <label for="toggleTouchScreen">在电脑端显示虚拟按键 (鼠标/触屏点按)</label>
+            <input type="checkbox" id="toggleTouchScreen" onchange="toggleVirtualTouchpad(this.checked)">
+          </div>
+          <div class="settings-row">
+            <label for="touchOpacitySlider">虚拟按键透明度 (<span id="touchOpacityVal">60%</span>)</label>
+            <input type="range" id="touchOpacitySlider" min="20" max="100" value="60" oninput="updateTouchOpacity(this.value)">
+          </div>
+          <div class="settings-row">
+            <label for="selectScaleMode">画面填充模式</label>
+            <select id="selectScaleMode" onchange="changeScaleMode(this.value)">
+              <option value="contain">等比最大充满窗口 (推荐，原汁原味)</option>
+              <option value="cover">铺满拉伸 (完全无黑边)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span style="font-size: 11px; color: #64748b;">支持所有 USB / 蓝牙游戏手柄即插即用</span>
+          <button class="btn-bar-settings" style="padding: 6px 16px; font-size: 13px;" onclick="closeControlModal()">完成并保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -736,30 +1159,145 @@
       }).catch(() => {});
     }
 
-    // Keyboard bindings (Desktop)
-    const KEY_MAP = {
-      'ArrowUp': 'UP',
-      'KeyW': 'UP',
-      'ArrowDown': 'DOWN',
-      'KeyS': 'DOWN',
-      'ArrowLeft': 'LEFT',
-      'KeyA': 'LEFT',
-      'ArrowRight': 'RIGHT',
-      'KeyD': 'RIGHT',
-      'KeyJ': 'B',
-      'KeyZ': 'B',
-      'KeyK': 'A',
-      'KeyX': 'A',
-      'Enter': 'START',
-      'Space': 'SELECT',
-      'ShiftRight': 'SELECT',
-      'KeyQ': 'L',
-      'KeyE': 'R'
+    // 6. Configurable Keyboard Bindings
+    const DEFAULT_KEY_CONFIG = {
+      'UP': ['KeyW', 'ArrowUp'],
+      'DOWN': ['KeyS', 'ArrowDown'],
+      'LEFT': ['KeyA', 'ArrowLeft'],
+      'RIGHT': ['KeyD', 'ArrowRight'],
+      'A': ['KeyK', 'KeyX'],
+      'B': ['KeyJ', 'KeyZ'],
+      'START': ['Enter'],
+      'SELECT': ['Space', 'ShiftRight'],
+      'L': ['KeyQ'],
+      'R': ['KeyE']
     };
 
+    const BTN_TITLES = {
+      'UP': '十字键 ↑ (上)',
+      'DOWN': '十字键 ↓ (下)',
+      'LEFT': '十字键 ← (左)',
+      'RIGHT': '十字键 → (右)',
+      'A': 'A 键 (确认 / 跳跃)',
+      'B': 'B 键 (返回 / 攻击 / 跑步)',
+      'START': 'Start (开始 / 暂停)',
+      'SELECT': 'Select (选择)',
+      'L': 'L 键 (左肩键)',
+      'R': 'R 键 (右肩键)'
+    };
+
+    let keyConfig = {};
+    let codeToBtn = {};
+    let activeListenBtn = null;
+
+    function initKeyConfig() {
+      try {
+        const saved = localStorage.getItem('retro_key_config');
+        if (saved) {
+          keyConfig = JSON.parse(saved);
+        } else {
+          keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
+        }
+      } catch (e) {
+        keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
+      }
+      rebuildCodeMap();
+      renderKeybindGrid();
+    }
+
+    function rebuildCodeMap() {
+      codeToBtn = {};
+      for (const [btn, codes] of Object.entries(keyConfig)) {
+        codes.forEach(c => {
+          codeToBtn[c] = btn;
+        });
+      }
+      updateQuickHud();
+    }
+
+    function updateQuickHud() {
+      const aKeys = (keyConfig['A'] || []).map(formatCode).join(' / ');
+      const bKeys = (keyConfig['B'] || []).map(formatCode).join(' / ');
+      const hudA = document.getElementById('hudKeyA');
+      const hudB = document.getElementById('hudKeyB');
+      if (hudA) hudA.textContent = aKeys || 'K';
+      if (hudB) hudB.textContent = bKeys || 'J';
+    }
+
+    function formatCode(c) {
+      if (!c) return '';
+      return c.replace(/^Key/, '').replace(/^Arrow/, '↑↓←→ ').replace(/Digit/, '');
+    }
+
+    function renderKeybindGrid() {
+      const grid = document.getElementById('keybindGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      for (const [btn, label] of Object.entries(BTN_TITLES)) {
+        if (system === 'nes' && (btn === 'L' || btn === 'R')) continue; // Hide L/R for NES
+        const codes = keyConfig[btn] || [];
+        const row = document.createElement('div');
+        row.className = 'keybind-row';
+        row.innerHTML = `
+          <span class="keybind-name">${label}</span>
+          <button class="keybind-btn ${activeListenBtn === btn ? 'listening' : ''}" onclick="listenForKey('${btn}')">
+            ${activeListenBtn === btn ? '请按下按键...' : (codes.map(formatCode).join(', ') || '未绑定')}
+          </button>
+        `;
+        grid.appendChild(row);
+      }
+    }
+
+    function listenForKey(btn) {
+      activeListenBtn = btn;
+      renderKeybindGrid();
+    }
+
+    function resetDefaultKeybindings() {
+      keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
+      localStorage.setItem('retro_key_config', JSON.stringify(keyConfig));
+      activeListenBtn = null;
+      rebuildCodeMap();
+      renderKeybindGrid();
+    }
+
+    // Global Key Listener
     window.addEventListener('keydown', (e) => {
+      // If modal is actively listening to assign a key
+      if (activeListenBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.code === 'Escape') {
+          activeListenBtn = null;
+          renderKeybindGrid();
+          return;
+        }
+        // Remove code from other buttons to avoid duplicate triggers
+        for (const b in keyConfig) {
+          keyConfig[b] = keyConfig[b].filter(c => c !== e.code);
+        }
+        if (!keyConfig[activeListenBtn]) keyConfig[activeListenBtn] = [];
+        keyConfig[activeListenBtn].unshift(e.code);
+        // keep max 2 keys per button
+        keyConfig[activeListenBtn] = keyConfig[activeListenBtn].slice(0, 2);
+
+        localStorage.setItem('retro_key_config', JSON.stringify(keyConfig));
+        activeListenBtn = null;
+        rebuildCodeMap();
+        renderKeybindGrid();
+        return;
+      }
+
+      // Shortcut: F or F11 for fullscreen
+      if ((e.code === 'KeyF' && document.activeElement.tagName !== 'INPUT') || e.code === 'F11') {
+        if (e.code === 'F11') e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
       if (currentRole !== 'player') return;
-      const btn = KEY_MAP[e.code];
+      const btn = codeToBtn[e.code];
       if (btn) {
         e.preventDefault();
         sendInput(btn, 1);
@@ -768,8 +1306,9 @@
     });
 
     window.addEventListener('keyup', (e) => {
+      if (activeListenBtn) return;
       if (currentRole !== 'player') return;
-      const btn = KEY_MAP[e.code];
+      const btn = codeToBtn[e.code];
       if (btn) {
         e.preventDefault();
         sendInput(btn, 0);
@@ -777,26 +1316,59 @@
       }
     });
 
-    // Touch controls (Mobile)
+    // 7. Fullscreen & Scale Mode
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function changeScaleMode(mode) {
+      if (mode === 'cover') {
+        cloudImg.classList.add('scale-cover');
+      } else {
+        cloudImg.classList.remove('scale-cover');
+      }
+      localStorage.setItem('retro_scale_mode', mode);
+    }
+
+    // 8. Virtual Touchpad Settings
+    function toggleVirtualTouchpad(force) {
+      if (force) {
+        touchControls.classList.add('force-show');
+      } else {
+        touchControls.classList.remove('force-show');
+      }
+      localStorage.setItem('retro_force_touch', force ? '1' : '0');
+    }
+
+    function updateTouchOpacity(val) {
+      touchControls.style.opacity = (val / 100);
+      const span = document.getElementById('touchOpacityVal');
+      if (span) span.textContent = `${val}%`;
+      localStorage.setItem('retro_touch_opacity', val);
+    }
+
+    // 9. Pointer Events for Virtual Touchpad (Mobile Touch + Mouse Click)
     document.querySelectorAll('[data-btn]').forEach(el => {
       const btn = el.dataset.btn;
-      el.addEventListener('touchstart', (e) => {
+      const handlePress = (e) => {
         e.preventDefault();
         sendInput(btn, 1);
         el.classList.add('pressed');
-      }, {passive: false});
-
-      el.addEventListener('touchend', (e) => {
+      };
+      const handleRelease = (e) => {
         e.preventDefault();
         sendInput(btn, 0);
         el.classList.remove('pressed');
-      }, {passive: false});
+      };
 
-      el.addEventListener('touchcancel', (e) => {
-        e.preventDefault();
-        sendInput(btn, 0);
-        el.classList.remove('pressed');
-      }, {passive: false});
+      el.addEventListener('pointerdown', handlePress);
+      el.addEventListener('pointerup', handleRelease);
+      el.addEventListener('pointercancel', handleRelease);
+      el.addEventListener('pointerleave', handleRelease);
     });
 
     function highlightTouchBtn(btn, pressed) {
@@ -807,38 +1379,132 @@
       }
     }
 
-    // Physical Gamepad API Polling
+    // 10. Control Modal Open/Close
+    const controlModal = document.getElementById('controlModal');
+    function openControlModal() {
+      controlModal.classList.remove('hidden');
+      renderKeybindGrid();
+    }
+    function closeControlModal() {
+      activeListenBtn = null;
+      controlModal.classList.add('hidden');
+    }
+    controlModal.addEventListener('click', (e) => {
+      if (e.target === controlModal) closeControlModal();
+    });
+
+    // 11. HTML5 Gamepad API with Axis Stick & Deadzone
     let prevPadButtons = {};
+    const GAMEPAD_BUTTON_MAP = {
+      0: 'A',      // Xbox A / PS Cross
+      1: 'B',      // Xbox B / PS Circle
+      2: 'B',      // Xbox X (alt B)
+      3: 'A',      // Xbox Y (alt A)
+      4: 'L',      // LB / L1
+      5: 'R',      // RB / R1
+      8: 'SELECT', // Back / View / Share
+      9: 'START',  // Start / Menu
+      12: 'UP',    // D-Pad Up
+      13: 'DOWN',  // D-Pad Down
+      14: 'LEFT',  // D-Pad Left
+      15: 'RIGHT'  // D-Pad Right
+    };
+
     function pollGamepads() {
-      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-      if (pads && pads[0] && currentRole === 'player') {
-        const pad = pads[0];
-        const padMap = {
-          0: 'A',
-          1: 'B',
-          8: 'SELECT',
-          9: 'START',
-          12: 'UP',
-          13: 'DOWN',
-          14: 'LEFT',
-          15: 'RIGHT',
-          4: 'L',
-          5: 'R'
-        };
-        for (const [idx, btnName] of Object.entries(padMap)) {
-          const pressed = pad.buttons[idx] && pad.buttons[idx].pressed ? 1 : 0;
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let activePad = null;
+      for (let i = 0; i < gamepads.length; i++) {
+        if (gamepads[i]) {
+          activePad = gamepads[i];
+          break;
+        }
+      }
+
+      // Update Gamepad Card in Modal
+      const gpText = document.getElementById('gamepadText');
+      const gpDot = document.getElementById('gamepadDot');
+      if (activePad) {
+        if (gpText) gpText.textContent = `🟢 物理手柄已连接: ${activePad.id.slice(0, 34)} (即插即用)`;
+        if (gpDot) gpDot.className = 'gamepad-dot online';
+      } else {
+        if (gpText) gpText.textContent = `⚪ 未检测到物理手柄 (支持 Xbox / PS / 蓝牙手柄即插即用)`;
+        if (gpDot) gpDot.className = 'gamepad-dot';
+      }
+
+      // Dispatch Gamepad Input
+      if (activePad && currentRole === 'player') {
+        // Digital buttons
+        for (const [idxStr, btnName] of Object.entries(GAMEPAD_BUTTON_MAP)) {
+          const idx = parseInt(idxStr);
+          const pressed = activePad.buttons[idx] && (activePad.buttons[idx].pressed || activePad.buttons[idx].value > 0.5) ? 1 : 0;
           if (prevPadButtons[btnName] !== pressed) {
             prevPadButtons[btnName] = pressed;
             sendInput(btnName, pressed);
             highlightTouchBtn(btnName, pressed === 1);
           }
         }
+
+        // Left Analog Stick (Axes 0 and 1)
+        if (activePad.axes && activePad.axes.length >= 2) {
+          const ax = activePad.axes[0];
+          const ay = activePad.axes[1];
+          const deadzone = 0.45;
+          const left = ax < -deadzone ? 1 : 0;
+          const right = ax > deadzone ? 1 : 0;
+          const up = ay < -deadzone ? 1 : 0;
+          const down = ay > deadzone ? 1 : 0;
+
+          if (prevPadButtons['AXIS_L'] !== left) {
+            prevPadButtons['AXIS_L'] = left;
+            sendInput('LEFT', left);
+          }
+          if (prevPadButtons['AXIS_R'] !== right) {
+            prevPadButtons['AXIS_R'] = right;
+            sendInput('RIGHT', right);
+          }
+          if (prevPadButtons['AXIS_U'] !== up) {
+            prevPadButtons['AXIS_U'] = up;
+            sendInput('UP', up);
+          }
+          if (prevPadButtons['AXIS_D'] !== down) {
+            prevPadButtons['AXIS_D'] = down;
+            sendInput('DOWN', down);
+          }
+        }
       }
+
       requestAnimationFrame(pollGamepads);
     }
     requestAnimationFrame(pollGamepads);
 
-    // Leave queue or session on page exit
+    // Initial setup from localStorage
+    initKeyConfig();
+    const savedScale = localStorage.getItem('retro_scale_mode');
+    if (savedScale) {
+      changeScaleMode(savedScale);
+      const sel = document.getElementById('selectScaleMode');
+      if (sel) sel.value = savedScale;
+    }
+    const savedTouch = localStorage.getItem('retro_force_touch');
+    if (savedTouch === '1') {
+      toggleVirtualTouchpad(true);
+      const chk = document.getElementById('toggleTouchScreen');
+      if (chk) chk.checked = true;
+    }
+    const savedOpacity = localStorage.getItem('retro_touch_opacity');
+    if (savedOpacity) {
+      updateTouchOpacity(parseInt(savedOpacity));
+      const sld = document.getElementById('touchOpacitySlider');
+      if (sld) sld.value = savedOpacity;
+    }
+    if (system === 'nes') {
+      const gbaBar = document.getElementById('barGbaKeys');
+      const shoulder = document.getElementById('shoulderContainer');
+      if (gbaBar) gbaBar.style.display = 'none';
+      if (shoulder) shoulder.style.display = 'none';
+    }
+
+    // Leave session on exit
     window.addEventListener('beforeunload', () => {
       navigator.sendBeacon('/api/cloud/leave', JSON.stringify({session_id: sessionId}));
     });
