@@ -685,6 +685,32 @@
       pointer-events: none;
     }
 
+    /* IME Alert */
+    .ime-alert {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(220, 38, 38, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(220, 38, 38, 0.5);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 13px;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: alertPop 0.3s ease;
+      transition: opacity 0.3s ease;
+    }
+    .ime-alert.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     @keyframes alertPop {
       0% { transform: translateX(-50%) scale(0.85); opacity: 0; }
       100% { transform: translateX(-50%) scale(1); opacity: 1; }
@@ -866,6 +892,11 @@
       <!-- Turn Alert Pop -->
       <div class="turn-alert hidden" id="turnAlert">
         🎉 轮到你了！已获得操控权限，无人排队可无限畅玩！
+      </div>
+
+      <!-- IME Alert Pop -->
+      <div class="ime-alert hidden" id="imeAlert">
+        ⚠️ 检测到中文输入法！请按键盘 <b>Shift</b> 键切换为<b>英文输入状态</b>方可控制！
       </div>
 
       <!-- Queue Floating Dock for Waiters -->
@@ -1207,10 +1238,10 @@
       'DOWN': ['KeyS', 'ArrowDown'],
       'LEFT': ['KeyA', 'ArrowLeft'],
       'RIGHT': ['KeyD', 'ArrowRight'],
-      'A': ['KeyK', 'KeyX'],
+      'A': ['KeyK', 'KeyX', 'Space'],
       'B': ['KeyJ', 'KeyZ'],
       'START': ['Enter'],
-      'SELECT': ['Space', 'ShiftRight'],
+      'SELECT': ['ShiftRight', 'ShiftLeft'],
       'L': ['KeyQ'],
       'R': ['KeyE']
     };
@@ -1220,7 +1251,7 @@
       'DOWN': '十字键 ↓ (下)',
       'LEFT': '十字键 ← (左)',
       'RIGHT': '十字键 → (右)',
-      'A': 'A 键 (确认 / 跳跃)',
+      'A': 'A 键 (确认 / 跳跃 / 对话)',
       'B': 'B 键 (返回 / 攻击 / 跑步)',
       'START': 'Start (开始 / 暂停)',
       'SELECT': 'Select (选择)',
@@ -1234,7 +1265,7 @@
 
     function initKeyConfig() {
       try {
-        const saved = localStorage.getItem('retro_key_config');
+        const saved = localStorage.getItem('retro_key_config_v2');
         if (saved) {
           keyConfig = JSON.parse(saved);
         } else {
@@ -1262,8 +1293,8 @@
       const bKeys = (keyConfig['B'] || []).map(formatCode).join(' / ');
       const hudA = document.getElementById('hudKeyA');
       const hudB = document.getElementById('hudKeyB');
-      if (hudA) hudA.textContent = aKeys || 'K';
-      if (hudB) hudB.textContent = bKeys || 'J';
+      if (hudA) hudA.textContent = aKeys || 'K / X / Space';
+      if (hudB) hudB.textContent = bKeys || 'J / Z';
     }
 
     function formatCode(c) {
@@ -1273,8 +1304,9 @@
       if (c === 'ArrowLeft') return '←';
       if (c === 'ArrowRight') return '→';
       if (c === 'Enter') return 'Enter';
-      if (c === 'Space') return 'Space';
+      if (c === 'Space') return 'Space(空格)';
       if (c === 'ShiftRight') return 'R-Shift';
+      if (c === 'ShiftLeft') return 'Shift';
       return c.replace(/^Key/, '').replace(/^Digit/, '');
     }
 
@@ -1305,14 +1337,31 @@
 
     function resetDefaultKeybindings() {
       keyConfig = JSON.parse(JSON.stringify(DEFAULT_KEY_CONFIG));
-      localStorage.setItem('retro_key_config', JSON.stringify(keyConfig));
+      localStorage.setItem('retro_key_config_v2', JSON.stringify(keyConfig));
       activeListenBtn = null;
       rebuildCodeMap();
       renderKeybindGrid();
     }
 
+    let imeAlertTimer = null;
+    function showImeAlert() {
+      const el = document.getElementById('imeAlert');
+      if (!el) return;
+      el.classList.remove('hidden');
+      clearTimeout(imeAlertTimer);
+      imeAlertTimer = setTimeout(() => {
+        el.classList.add('hidden');
+      }, 3500);
+    }
+
     // Global Key Listener
     window.addEventListener('keydown', (e) => {
+      // IME composition detection
+      if (e.isComposing || e.keyCode === 229 || e.key === 'Process') {
+        showImeAlert();
+        return;
+      }
+
       // If modal is actively listening to assign a key
       if (activeListenBtn) {
         e.preventDefault();
@@ -1328,10 +1377,10 @@
         }
         if (!keyConfig[activeListenBtn]) keyConfig[activeListenBtn] = [];
         keyConfig[activeListenBtn].unshift(e.code);
-        // keep max 2 keys per button
-        keyConfig[activeListenBtn] = keyConfig[activeListenBtn].slice(0, 2);
+        // keep max 3 keys per button
+        keyConfig[activeListenBtn] = keyConfig[activeListenBtn].slice(0, 3);
 
-        localStorage.setItem('retro_key_config', JSON.stringify(keyConfig));
+        localStorage.setItem('retro_key_config_v2', JSON.stringify(keyConfig));
         activeListenBtn = null;
         rebuildCodeMap();
         renderKeybindGrid();
@@ -1375,6 +1424,10 @@
         sendInput(btn, 0);
         highlightTouchBtn(btn, false);
       }
+    });
+
+    document.addEventListener('click', () => {
+      window.focus();
     });
 
     let isFastForwardActive = false;
