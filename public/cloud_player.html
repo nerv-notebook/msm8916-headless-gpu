@@ -318,14 +318,11 @@
       align-items: center;
       padding: 20px;
       opacity: 1;
-      visibility: visible;
-      transition: opacity 0.25s ease, visibility 0.25s ease;
+      pointer-events: auto;
     }
 
     .modal-backdrop.hidden {
-      opacity: 0 !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
+      display: none !important;
     }
 
     .modal-card {
