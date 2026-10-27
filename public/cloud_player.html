@@ -310,32 +310,36 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(7, 3, 16, 0.82);
-      backdrop-filter: blur(14px);
-      z-index: 300;
+      background: rgba(8, 4, 18, 0.88);
+      backdrop-filter: blur(16px);
+      z-index: 9999;
       display: flex;
       justify-content: center;
       align-items: center;
       padding: 20px;
-      transition: opacity 0.3s ease;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
     }
 
     .modal-backdrop.hidden {
-      opacity: 0;
-      pointer-events: none;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     .modal-card {
-      background: #140d28;
-      border: 1px solid rgba(198, 240, 58, 0.3);
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(198, 240, 58, 0.15);
+      background: #190f34;
+      border: 1px solid rgba(198, 240, 58, 0.45);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95), 0 0 40px rgba(198, 240, 58, 0.2);
       border-radius: 20px;
       width: min(96%, 620px);
       max-height: 88vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #fff;
+      animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes modalPop {
