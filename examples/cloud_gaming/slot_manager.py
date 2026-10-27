@@ -19,7 +19,7 @@ WORKER_SCRIPT = os.path.join(BASE_DIR, "game_worker.py")
 PYTHON_BIN = sys.executable
 
 class SlotManager:
-    def __init__(self, max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=15):
+    def __init__(self, max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=60):
         self.max_slots = max_slots
         self.idle_timeout_sec = idle_timeout_sec
         self.max_turn_sec = max_turn_sec

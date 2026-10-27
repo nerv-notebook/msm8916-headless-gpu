@@ -48,6 +48,7 @@ class GameWorkerEngine:
         self.latest_jpeg = None
         self.new_frame_event = threading.Condition()
         self.lock = threading.Lock()
+        self.fast_forward = False
         self.fps = 0.0
         self.cpu_temp = "45°C"
         self.active_viewers = 0
@@ -73,7 +74,7 @@ class GameWorkerEngine:
         cfg_attribs = (ctypes.c_int * 5)(0x3040, 4, 0x3024, 8, 0x3038)
         cfg, ncfg = ctypes.c_void_p(), ctypes.c_int()
         self.libegl.eglChooseConfig(self.egl_disp, cfg_attribs, ctypes.byref(cfg), 1, ctypes.byref(ncfg))
-        ctx_attribs = (ctypes.c_int * 3)(0x3098, 2, 0x3038)
+        ctx_attribs = (ctypes.c_int * 3)(0x3098, 3, 0x3038)
         self.libegl.eglCreateContext.restype = ctypes.c_void_p
         self.libegl.eglCreateContext.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
         self.ctx = self.libegl.eglCreateContext(self.egl_disp, cfg, None, ctx_attribs)
@@ -92,6 +93,11 @@ class GameWorkerEngine:
 
     def set_button(self, btn_name, state):
         btn_upper = btn_name.upper()
+        if btn_upper in ("FASTFORWARD", "FF", "SPEED"):
+            with self.lock:
+                self.fast_forward = bool(state)
+            self.last_active_time = time.time()
+            return True
         if btn_upper in JOYPAD_MAP:
             btn_id = JOYPAD_MAP[btn_upper]
             with self.lock:
@@ -185,6 +191,8 @@ class GameWorkerEngine:
         self.libgles.glBindTexture(0x0DE1, self.game_tex.value)
         self.libgles.glTexParameteri(0x0DE1, 0x2800, 0x2600)
         self.libgles.glTexParameteri(0x0DE1, 0x2801, 0x2600)
+        self.libgles.glTexParameteri(0x0DE1, 0x2802, 0x812F) # GL_CLAMP_TO_EDGE
+        self.libgles.glTexParameteri(0x0DE1, 0x2803, 0x812F) # GL_CLAMP_TO_EDGE
 
         # FBO
         self.fbo = ctypes.c_uint()
@@ -215,11 +223,13 @@ class GameWorkerEngine:
         core_lib = CORE_PATHS[self.system]
         core = ctypes.CDLL(core_lib)
 
+        TMP_DIR_PTR = ctypes.c_char_p(b"/tmp\0")
         latest_frame = {}
         def env_cb(cmd, data):
             if cmd in (9, 31):
-                p = ctypes.cast(data, ctypes.POINTER(ctypes.c_char_p))
-                p.contents.value = b"/tmp"
+                if data:
+                    p = ctypes.cast(data, ctypes.POINTER(ctypes.c_char_p))
+                    p.contents = TMP_DIR_PTR
                 return True
             if cmd == 10:
                 return True
@@ -276,8 +286,11 @@ class GameWorkerEngine:
         try:
             while not self.stop_requested:
                 frame_start = time.time()
+                is_ff = getattr(self, "fast_forward", False)
+                ticks = 2 if is_ff else 1
 
-                core.retro_run()
+                for _ in range(ticks):
+                    core.retro_run()
 
                 if 'data' in latest_frame:
                     w = latest_frame['w']
@@ -308,7 +321,8 @@ class GameWorkerEngine:
                         pass
 
                 draw = ImageDraw.Draw(img)
-                hud_text = f"MSM8916 CLOUD GPU | Adreno 306 @ /dev/dri/renderD128 | {self.fps:.0f} FPS | {self.cpu_temp}"
+                speed_str = " (⏩2x加速)" if is_ff else ""
+                hud_text = f"MSM8916 CLOUD GPU | Adreno 306 @ /dev/dri/renderD128 | {self.fps:.0f} FPS{speed_str} | {self.cpu_temp}"
                 draw.rectangle([(0, 0), (out_w, 16)], fill=(10, 15, 25, 220))
                 draw.text((6, 2), hud_text, fill=(0, 242, 254))
 
@@ -435,6 +449,10 @@ class WorkerHTTPHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
 
+class ReusableThreadingServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
@@ -447,7 +465,7 @@ def main():
     engine.start()
 
     WorkerHTTPHandler.engine = engine
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), WorkerHTTPHandler)
+    server = ReusableThreadingServer(("127.0.0.1", args.port), WorkerHTTPHandler)
     print(f"[Worker] Online on 127.0.0.1:{args.port} for {args.title} ({args.system})")
     try:
         server.serve_forever()

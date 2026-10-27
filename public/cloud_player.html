@@ -160,6 +160,26 @@
       box-shadow: 0 0 12px rgba(198, 240, 58, 0.25);
     }
 
+    .btn-fast-forward {
+      padding: 6px 12px;
+      background: rgba(255, 180, 0, 0.12);
+      border: 1px solid rgba(255, 180, 0, 0.4);
+      border-radius: 20px;
+      color: #ffb400;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+    .btn-fast-forward:hover, .btn-fast-forward.active {
+      background: #ffb400;
+      color: #0d061e;
+      box-shadow: 0 0 14px rgba(255, 180, 0, 0.4);
+    }
+
     .btn-fast-wasm {
       padding: 6px 14px;
       background: rgba(198, 240, 58, 0.12);
@@ -826,6 +846,7 @@
       </div>
 
       <div class="cloud-actions">
+        <button class="btn-fast-forward" id="btnFastForward" onclick="toggleFastForward()" title="云端 2x 速度快进 (快捷键: 按住或点按 Tab)">⏩ 2x 快进</button>
         <button class="btn-ctrl-settings" id="btnControls" onclick="openControlModal()" title="按键说明与自定义控制设置">🎮 按键设置</button>
         <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏沉浸畅玩">⛶ 全屏</button>
         <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="免排队直接在客户端以 WebAssembly 畅玩">⚡ 免排队玩单机</a>
@@ -890,6 +911,10 @@
           <span class="ctrl-label">选择</span>
           <kbd class="key-badge">Space</kbd>
         </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">快进</span>
+          <kbd class="key-badge">Tab</kbd>
+        </div>
         <button class="btn-bar-settings" onclick="openControlModal()">🎮 自定义</button>
       </div>
 
@@ -912,6 +937,7 @@
         <div class="center-menu-container">
           <button class="btn-pill" data-btn="SELECT">Select</button>
           <button class="btn-pill" data-btn="START">Start</button>
+          <button class="btn-pill" id="mobileFfPill" onclick="toggleFastForward()" style="color:#ffb400; border-color:rgba(255,180,0,0.5);">⏩ 2X</button>
         </div>
 
         <div class="action-container">
@@ -1312,6 +1338,13 @@
         return;
       }
 
+      // Shortcut: Tab for fast-forward
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        if (!isFastForwardActive) toggleFastForward(true);
+        return;
+      }
+
       // Shortcut: F or F11 for fullscreen
       if ((e.code === 'KeyF' && document.activeElement.tagName !== 'INPUT') || e.code === 'F11') {
         if (e.code === 'F11') e.preventDefault();
@@ -1330,6 +1363,11 @@
 
     window.addEventListener('keyup', (e) => {
       if (activeListenBtn) return;
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        toggleFastForward(false);
+        return;
+      }
       if (currentRole !== 'player') return;
       const btn = codeToBtn[e.code];
       if (btn) {
@@ -1338,6 +1376,20 @@
         highlightTouchBtn(btn, false);
       }
     });
+
+    let isFastForwardActive = false;
+    function toggleFastForward(force) {
+      if (typeof force === 'boolean') {
+        isFastForwardActive = force;
+      } else {
+        isFastForwardActive = !isFastForwardActive;
+      }
+      const btn = document.getElementById('btnFastForward');
+      const mobileBtn = document.getElementById('mobileFfPill');
+      if (btn) btn.classList.toggle('active', isFastForwardActive);
+      if (mobileBtn) mobileBtn.classList.toggle('active', isFastForwardActive);
+      sendInput('FASTFORWARD', isFastForwardActive ? 1 : 0);
+    }
 
     // 7. Fullscreen & Scale Mode
     function toggleFullscreen() {
