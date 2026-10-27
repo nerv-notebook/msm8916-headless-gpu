@@ -350,7 +350,15 @@ python3 scripts/test_adreno_3d.py
 | **串流带宽占用** | ~2.1 Mbps | ~1.8 Mbps | NEON TurboJPEG 压缩 (每帧仅 ~5 KB) |
 | **整机负载与功耗** | CPU: 28% \| 温度 49°C | CPU: 33% \| 温度 53°C | 整机仅 1.3W，发热温和绝不降频 |
 
-完整的云游戏引擎实现代码可直接查阅 [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py)。
+### 8.2 多人分享防挤爆：街机排队机制与实时观战系统 (Arcade Queue & Spectator Mode)
+
+由于骁龙 410 板载只有 1 颗物理 GPU 核心，当将云游戏公网链接分享给众多好友或社区玩家时，系统实现了**街机厅式的投币轮流排队机制 (FIFO Queue)**：
+- **独占操控轮次 (Arcade Turn)**：当前玩家拥有 Adreno 306 独占操控权，默认每轮限制 6 分钟，若闲置超过 45 秒自动礼让下一位。
+- **多人零延迟观战模式 (Live Spectator Mode)**：排队中的所有观众均可实时接收 60 FPS 游戏画面串流，直观看到当前高玩的走位与操作，并显示排队顺位与预计等待倒计时。
+- **自动顺位晋升 (Automatic Promotion)**：当前玩家时间到、主动退出或网络断开时，系统毫秒级将排队第 1 位晋升为主控玩家，弹出通知并无缝解锁手柄与按键。
+- **免排队极速切换 (Instant WASM Mode)**：不想排队的用户，可一键点击“⚡ 免排队玩单机”，瞬间切换为基于浏览器 WebAssembly 的独立单机版，零秒等待即刻开打。
+
+完整的生产级云游戏与排队调度代码可直接查阅 [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py)。
 
 ---
 

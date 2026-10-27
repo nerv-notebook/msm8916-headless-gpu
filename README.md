@@ -318,7 +318,15 @@ Unlike web player wrappers (e.g. EmulatorJS) that only execute WebAssembly insid
 | **Streaming Bitrate** | ~2.1 Mbps | ~1.8 Mbps | NEON TurboJPEG compression (~5 KB/frame) |
 | **System Load & Temp** | CPU: 28% \| 49°C | CPU: 33% \| 53°C | 1.3W total stick power consumption |
 
-A full implementation example is provided in [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py).
+### Multi-User Arcade Queue & Spectator Mode
+
+Because Snapdragon 410 possesses 1 physical GPU core, public deployments implement an **Arcade-Cabinet FIFO Queue**:
+- **Exclusive Gamepad Turn**: 1 active controller holds exclusive Adreno 306 GPU input control (default: 6-minute turn, auto-yield on 45s idle).
+- **Zero-Latency Live Spectator Stream**: Waiting players watch the active player's screen in real-time at 60 FPS with live cheering HUD.
+- **Automatic Promotion**: Seamless promotion to active player upon session timeout, voluntary exit, or heartbeat loss.
+- **Dual-Mode Bypass**: Players can click *"⚡ Instant WASM Mode"* to switch immediately to client-side emulation with zero wait time.
+
+A full production-grade engine implementation is provided in [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py).
 
 ---
 

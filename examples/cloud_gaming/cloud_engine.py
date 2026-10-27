@@ -65,9 +65,200 @@ CORE_PATHS = {
     "gba": "/usr/lib/aarch64-linux-gnu/libretro/mgba_libretro.so"
 }
 
+class QueueManager:
+    """Manages player arcade turns, FIFO waiting queue, and idle timeouts."""
+    def __init__(self, max_session_sec=360, idle_timeout_sec=45):
+        self.max_session_sec = max_session_sec # 6 minutes default turn
+        self.idle_timeout_sec = idle_timeout_sec # 45 seconds idle yield
+        self.active_session = None # {session_id, player_name, start_time, last_heartbeat, last_input}
+        self.waiting_queue = [] # [{session_id, player_name, joined_at, last_heartbeat}]
+        self.lock = threading.Lock()
+
+    def join(self, session_id, player_name=""):
+        with self.lock:
+            self._tick()
+            now = time.time()
+            if not player_name:
+                player_name = f"玩家 #{session_id[-4:]}"
+
+            # 1. Already active player
+            if self.active_session and self.active_session["session_id"] == session_id:
+                self.active_session["last_heartbeat"] = now
+                elapsed = now - self.active_session["start_time"]
+                time_left = max(1, int(self.max_session_sec - elapsed))
+                return {
+                    "role": "player",
+                    "session_id": session_id,
+                    "player_name": self.active_session["player_name"],
+                    "time_left_sec": time_left,
+                    "queue_len": len(self.waiting_queue)
+                }
+
+            # 2. No active player -> immediately grant control
+            if not self.active_session:
+                self.active_session = {
+                    "session_id": session_id,
+                    "player_name": player_name,
+                    "start_time": now,
+                    "last_heartbeat": now,
+                    "last_input": now
+                }
+                return {
+                    "role": "player",
+                    "session_id": session_id,
+                    "player_name": player_name,
+                    "time_left_sec": self.max_session_sec,
+                    "queue_len": 0
+                }
+
+            # 3. Already in waiting queue
+            for i, item in enumerate(self.waiting_queue):
+                if item["session_id"] == session_id:
+                    item["last_heartbeat"] = now
+                    item["player_name"] = player_name
+                    elapsed_active = now - self.active_session["start_time"]
+                    active_left = max(1, int(self.max_session_sec - elapsed_active))
+                    est_wait = active_left + (i * self.max_session_sec)
+                    return {
+                        "role": "queued",
+                        "session_id": session_id,
+                        "player_name": player_name,
+                        "queue_position": i + 1,
+                        "queue_len": len(self.waiting_queue),
+                        "est_wait_sec": est_wait,
+                        "current_player": self.active_session["player_name"],
+                        "current_left_sec": active_left
+                    }
+
+            # 4. Add to waiting queue
+            new_entry = {
+                "session_id": session_id,
+                "player_name": player_name,
+                "joined_at": now,
+                "last_heartbeat": now
+            }
+            self.waiting_queue.append(new_entry)
+            pos = len(self.waiting_queue)
+            elapsed_active = now - self.active_session["start_time"]
+            active_left = max(1, int(self.max_session_sec - elapsed_active))
+            est_wait = active_left + ((pos - 1) * self.max_session_sec)
+            return {
+                "role": "queued",
+                "session_id": session_id,
+                "player_name": player_name,
+                "queue_position": pos,
+                "queue_len": pos,
+                "est_wait_sec": est_wait,
+                "current_player": self.active_session["player_name"],
+                "current_left_sec": active_left
+            }
+
+    def heartbeat(self, session_id):
+        with self.lock:
+            self._tick()
+            now = time.time()
+            if self.active_session and self.active_session["session_id"] == session_id:
+                self.active_session["last_heartbeat"] = now
+                elapsed = now - self.active_session["start_time"]
+                time_left = max(1, int(self.max_session_sec - elapsed))
+                return {
+                    "role": "player",
+                    "session_id": session_id,
+                    "player_name": self.active_session["player_name"],
+                    "time_left_sec": time_left,
+                    "queue_len": len(self.waiting_queue)
+                }
+
+            for i, item in enumerate(self.waiting_queue):
+                if item["session_id"] == session_id:
+                    item["last_heartbeat"] = now
+                    elapsed_active = now - self.active_session["start_time"] if self.active_session else 0
+                    active_left = max(1, int(self.max_session_sec - elapsed_active))
+                    return {
+                        "role": "queued",
+                        "session_id": session_id,
+                        "player_name": item["player_name"],
+                        "queue_position": i + 1,
+                        "queue_len": len(self.waiting_queue),
+                        "est_wait_sec": active_left + (i * self.max_session_sec),
+                        "current_player": self.active_session["player_name"] if self.active_session else "空闲",
+                        "current_left_sec": active_left
+                    }
+
+            return {
+                "role": "spectator",
+                "session_id": session_id,
+                "queue_len": len(self.waiting_queue),
+                "current_player": self.active_session["player_name"] if self.active_session else "空闲"
+            }
+
+    def can_control(self, session_id):
+        with self.lock:
+            if not session_id:
+                return True # Fallback for local testing
+            return bool(self.active_session and self.active_session["session_id"] == session_id)
+
+    def record_input(self, session_id):
+        with self.lock:
+            if self.active_session and self.active_session["session_id"] == session_id:
+                self.active_session["last_input"] = time.time()
+
+    def leave(self, session_id):
+        with self.lock:
+            if self.active_session and self.active_session["session_id"] == session_id:
+                self._promote_next()
+                return True
+            self.waiting_queue = [q for q in self.waiting_queue if q["session_id"] != session_id]
+            return True
+
+    def _promote_next(self):
+        now = time.time()
+        alive = [q for q in self.waiting_queue if (now - q["last_heartbeat"]) < 15.0]
+        if alive:
+            next_p = alive.pop(0)
+            self.active_session = {
+                "session_id": next_p["session_id"],
+                "player_name": next_p["player_name"],
+                "start_time": now,
+                "last_heartbeat": now,
+                "last_input": now
+            }
+            self.waiting_queue = alive
+            print(f"[Queue] Promoted {next_p['player_name']} to active player!")
+        else:
+            self.active_session = None
+            self.waiting_queue = []
+
+    def _tick(self):
+        now = time.time()
+        # Clean stale queued entries (no heartbeat for > 15s)
+        self.waiting_queue = [q for q in self.waiting_queue if (now - q["last_heartbeat"]) < 15.0]
+
+        if self.active_session:
+            # Drop disconnected active player
+            if (now - self.active_session["last_heartbeat"]) > 15.0:
+                print(f"[Queue] Active player {self.active_session['player_name']} disconnected.")
+                self._promote_next()
+                return
+
+            if self.waiting_queue:
+                elapsed = now - self.active_session["start_time"]
+                idle = now - self.active_session["last_input"]
+                if elapsed >= self.max_session_sec or idle >= self.idle_timeout_sec:
+                    reason = "Time limit" if elapsed >= self.max_session_sec else "Idle timeout"
+                    print(f"[Queue] Player turn ended ({reason}). Promoting next.")
+                    self._promote_next()
+                    return
+            else:
+                elapsed = now - self.active_session["start_time"]
+                if elapsed >= self.max_session_sec:
+                    self.active_session["start_time"] = now - (self.max_session_sec - 180) # auto extend by 3m
+
+
 class CloudGameEngine:
     def __init__(self, render_node="/dev/dri/renderD128"):
         self.render_node = render_node
+        self.queue_mgr = QueueManager(max_session_sec=360, idle_timeout_sec=45)
         self.running = False
         self.paused = False
         self.current_rom = None
@@ -139,8 +330,12 @@ class CloudGameEngine:
         print(f"[CloudEngine] GPU online: {self.gpu_device_name}")
         self.egl_initialized = True
 
-    def set_button(self, btn_name, state):
+    def set_button(self, btn_name, state, session_id=None):
         """Update virtual gamepad button state (1 for pressed, 0 for released)."""
+        if session_id and not self.queue_mgr.can_control(session_id):
+            return False
+        if session_id:
+            self.queue_mgr.record_input(session_id)
         btn_upper = btn_name.upper()
         if btn_upper in JOYPAD_MAP:
             btn_id = JOYPAD_MAP[btn_upper]
@@ -155,9 +350,22 @@ class CloudGameEngine:
             for k in self.buttons:
                 self.buttons[k] = 0
 
-    def start_game(self, rom_path, system="nes", title=""):
-        """Start a hardware-accelerated cloud gaming session."""
+    def start_game(self, rom_path, system="nes", title="", session_id=None, player_name=""):
+        """Start or join a hardware-accelerated cloud gaming session."""
+        # 1. Manage Queue
+        q_info = self.queue_mgr.join(session_id, player_name) if session_id else {"role": "player"}
+
+        # If already running:
         if self.running:
+            # If the requester is queued (not active player), do NOT disrupt the active player's game!
+            if q_info.get("role") == "queued":
+                return q_info
+            
+            # If same ROM is already running, no need to reboot core
+            if self.current_rom == rom_path:
+                return q_info
+            
+            # Active player wants to change game
             self.stop_game()
 
         if system not in CORE_PATHS or not os.path.isfile(CORE_PATHS[system]):
@@ -175,7 +383,7 @@ class CloudGameEngine:
 
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
-        return True
+        return q_info
 
     def stop_game(self):
         """Stop current cloud gaming session."""
@@ -189,13 +397,19 @@ class CloudGameEngine:
         self.latest_jpeg = None
         self.reset_buttons()
 
-    def get_status(self):
+    def get_status(self, session_id=None):
         # Update CPU Temp
         try:
             with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
                 self.cpu_temp = f"{int(f.read().strip()) // 1000}°C"
         except Exception:
             pass
+
+        q_info = self.queue_mgr.heartbeat(session_id) if session_id else {
+            "role": "spectator",
+            "queue_len": len(self.queue_mgr.waiting_queue),
+            "current_player": self.queue_mgr.active_session["player_name"] if self.queue_mgr.active_session else "空闲"
+        }
 
         return {
             "running": self.running,
@@ -206,7 +420,8 @@ class CloudGameEngine:
             "gpu_device": self.gpu_device_name,
             "render_node": self.render_node,
             "active_viewers": self.active_viewers,
-            "engine": "MSM8916 Headless Freedreno + Libretro"
+            "engine": "MSM8916 Headless Freedreno + Libretro",
+            "queue": q_info
         }
 
     def _setup_gl_pipeline(self, out_w, out_h):
