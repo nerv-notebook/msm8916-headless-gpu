@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RetroStick | 真·硬件渲染云游戏</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #07090e;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #fff;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .cloud-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      position: relative;
+    }
+
+    /* Top Bar */
+    .cloud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 18px;
+      background: rgba(22, 14, 44, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .cloud-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .cloud-live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(198, 240, 58, 0.4);
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .cloud-live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulseDot 1.4s infinite;
+    }
+
+    @keyframes pulseDot {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 10px var(--accent); }
+      100% { opacity: 0.4; transform: scale(0.9); }
+    }
+
+    .badge-role {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+    }
+
+    .badge-player {
+      background: rgba(198, 240, 58, 0.15);
+      border: 1px solid rgba(198, 240, 58, 0.6);
+      color: var(--accent);
+    }
+
+    .badge-queued {
+      background: rgba(255, 180, 0, 0.15);
+      border: 1px solid rgba(255, 180, 0, 0.6);
+      color: #ffb400;
+    }
+
+    .badge-spectator {
+      background: rgba(147, 197, 253, 0.15);
+      border: 1px solid rgba(147, 197, 253, 0.4);
+      color: #93c5fd;
+    }
+
+    .cloud-game-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--fg);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+
+    .cloud-hud {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface-2);
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .cloud-hud-item b {
+      color: var(--accent);
+    }
+
+    .cloud-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-fast-wasm {
+      padding: 6px 14px;
+      background: rgba(198, 240, 58, 0.12);
+      border: 1px solid rgba(198, 240, 58, 0.4);
+      border-radius: 20px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-fast-wasm:hover {
+      background: var(--accent);
+      color: var(--on-accent);
+      box-shadow: 0 0 14px rgba(198, 240, 58, 0.4);
+    }
+
+    .btn-exit {
+      padding: 6px 14px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--fg-2);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-exit:hover {
+      background: rgba(255, 91, 121, 0.2);
+      border-color: #ff5b79;
+      color: #ff5b79;
+    }
+
+    /* Screen Stage */
+    .screen-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+    }
+
+    .cloud-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 40px rgba(0, 242, 254, 0.15);
+    }
+
+    .connecting-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(10, 15, 25, 0.9);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      transition: opacity 0.4s ease;
+    }
+
+    .connecting-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .connecting-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(198, 240, 58, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Queue Floating Dock */
+    .queue-dock {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(94%, 580px);
+      background: rgba(22, 14, 44, 0.94);
+      border: 1px solid rgba(255, 180, 0, 0.4);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 180, 0, 0.15);
+      border-radius: 16px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      z-index: 120;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .queue-dock.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(-20px);
+    }
+
+    .queue-pos-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: #ffb400;
+      color: #0d061e;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 11px;
+      margin-right: 6px;
+    }
+
+    .queue-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+    }
+
+    .queue-sub {
+      font-size: 11px;
+      color: #a5b4fc;
+      margin-top: 3px;
+    }
+
+    .btn-switch-wasm {
+      padding: 8px 14px;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-weight: 700;
+      font-size: 12px;
+      border-radius: 20px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(198, 240, 58, 0.35);
+      transition: all 0.2s ease;
+    }
+
+    .btn-switch-wasm:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(198, 240, 58, 0.5);
+    }
+
+    /* Turn Won Toast */
+    .turn-alert {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #c6f03a, #52e591);
+      color: #0d061e;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 10px 30px rgba(198, 240, 58, 0.5);
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: alertPop 0.4s ease;
+      transition: opacity 0.4s ease;
+    }
+
+    .turn-alert.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes alertPop {
+      0% { transform: translateX(-50%) scale(0.85); opacity: 0; }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+
+    /* Touch Gamepad on Mobile */
+    .touch-controls {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 220px;
+      pointer-events: none;
+      z-index: 80;
+      transition: opacity 0.3s ease, filter 0.3s ease;
+    }
+
+    .touch-controls.controls-locked {
+      opacity: 0.35;
+      pointer-events: none !important;
+      filter: grayscale(0.8);
+    }
+
+    @media (max-width: 900px), (hover: none) {
+      .touch-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 16px 20px 24px;
+      }
+      .cloud-hud {
+        display: none;
+      }
+    }
+
+    .dpad-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      pointer-events: auto;
+    }
+
+    .dpad-btn {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      touch-action: none;
+      transition: background 0.1s;
+    }
+
+    .dpad-btn:active, .dpad-btn.pressed {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+    }
+
+    .dpad-up { top: 0; left: 46px; width: 48px; height: 46px; border-radius: 8px 8px 0 0; }
+    .dpad-down { bottom: 0; left: 46px; width: 48px; height: 46px; border-radius: 0 0 8px 8px; }
+    .dpad-left { top: 46px; left: 0; width: 46px; height: 48px; border-radius: 8px 0 0 8px; }
+    .dpad-right { top: 46px; right: 0; width: 46px; height: 48px; border-radius: 0 8px 8px 0; }
+    .dpad-center { top: 46px; left: 46px; width: 48px; height: 48px; background: rgba(255, 255, 255, 0.04); border: none; }
+
+    .action-container {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .btn-round {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      touch-action: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    .btn-round:active, .btn-round.pressed {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 16px var(--accent);
+    }
+
+    .btn-b { transform: translateY(16px); }
+    .btn-a { transform: translateY(-8px); }
+
+    .center-menu-container {
+      display: flex;
+      gap: 14px;
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: auto;
+    }
+
+    .btn-pill {
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-pill:active, .btn-pill.pressed {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="cloud-container">
+    <!-- Header -->
+    <header class="cloud-header">
+      <div class="cloud-brand">
+        <span class="cloud-live-pill">
+          <span class="cloud-live-dot"></span>
+          MSM8916 硬件云渲染
+        </span>
+        <span class="badge-role badge-spectator" id="roleBadge">连接中...</span>
+        <h2 class="cloud-game-title" id="gameTitle">加载中...</h2>
+      </div>
+
+      <div class="cloud-hud">
+        <span class="cloud-hud-item">GPU: <b id="hudGpu">Adreno 306</b></span>
+        <span class="cloud-hud-item">帧率: <b id="hudFps">-- FPS</b></span>
+        <span class="cloud-hud-item">温度: <b id="hudTemp">--°C</b></span>
+        <span class="cloud-hud-item">剩余时间: <b id="hudTimeLeft">--:--</b></span>
+        <span class="cloud-hud-item">排队: <b id="hudQueueLen">0 人</b></span>
+      </div>
+
+      <div class="cloud-actions">
+        <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="免排队直接在客户端以 WebAssembly 畅玩">⚡ 免排队玩单机</a>
+        <a href="/" class="btn-exit" id="btnExit">退出</a>
+      </div>
+    </header>
+
+    <!-- Stage -->
+    <main class="screen-stage">
+      <!-- Loading Overlay -->
+      <div class="connecting-overlay" id="connectingOverlay">
+        <div class="connecting-spinner"></div>
+        <p style="font-size: 15px; font-weight: 600; color: var(--accent);">正在接入随身 WiFi Adreno 306 硬件加速渲染管线...</p>
+        <span style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Qualcomm Cortex-A53 4-Core Libretro Native Engine</span>
+      </div>
+
+      <!-- Turn Alert Pop -->
+      <div class="turn-alert hidden" id="turnAlert">
+        🎉 轮到你了！已获得操控权限，独占 6 分钟畅玩！
+      </div>
+
+      <!-- Queue Floating Dock for Waiters -->
+      <div class="queue-dock hidden" id="queueDock">
+        <div class="queue-info">
+          <div class="queue-title">
+            <span class="queue-pos-badge" id="queuePosBadge">排队中 #1</span>
+            <span id="queueNoticeText">当前玩家: [玩家] 正在畅玩</span>
+          </div>
+          <div class="queue-sub" id="queueSubText">您正在实时观战，也可随时免排队直接玩单机版</div>
+        </div>
+        <div class="queue-actions">
+          <a href="#" class="btn-switch-wasm" id="btnSwitchWasm">⚡ 免排队立即玩 (WASM)</a>
+        </div>
+      </div>
+
+      <!-- Live MJPEG Stream -->
+      <img id="cloudScreen" class="cloud-img" alt="MSM8916 Cloud Stream" style="display: none;">
+
+      <!-- Onscreen Gamepad for Mobile -->
+      <div class="touch-controls controls-locked" id="touchControls">
+        <div class="dpad-container">
+          <div class="dpad-btn dpad-up" data-btn="UP">▲</div>
+          <div class="dpad-btn dpad-down" data-btn="DOWN">▼</div>
+          <div class="dpad-btn dpad-left" data-btn="LEFT">◀</div>
+          <div class="dpad-btn dpad-right" data-btn="RIGHT">▶</div>
+          <div class="dpad-center"></div>
+        </div>
+
+        <div class="center-menu-container">
+          <button class="btn-pill" data-btn="SELECT">Select</button>
+          <button class="btn-pill" data-btn="START">Start</button>
+        </div>
+
+        <div class="action-container">
+          <button class="btn-round btn-b" data-btn="B">B</button>
+          <button class="btn-round btn-a" data-btn="A">A</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const relPath = params.get('rel_path') || 'nes/super_mario_bros.nes';
+    const system = params.get('system') || 'nes';
+    const title = params.get('title') || '经典怀旧游戏';
+
+    // Session & Player Identity
+    let sessionId = sessionStorage.getItem('retro_session_id');
+    if (!sessionId) {
+      sessionId = 'usr_' + Math.random().toString(36).substring(2, 8);
+      sessionStorage.setItem('retro_session_id', sessionId);
+    }
+    const playerName = localStorage.getItem('retro_player_name') || ('玩家 #' + sessionId.slice(-4).toUpperCase());
+
+    // WASM Fast Link
+    const wasmUrl = `/emulator.html?system=${encodeURIComponent(system)}&core=${encodeURIComponent(system)}&game=${encodeURIComponent('/api/roms/' + relPath)}&title=${encodeURIComponent(title)}&id=${encodeURIComponent(title)}`;
+    document.getElementById('btnFastWasm').href = wasmUrl;
+    document.getElementById('btnSwitchWasm').href = wasmUrl;
+
+    document.getElementById('gameTitle').textContent = title;
+    document.title = `${title} | RetroStick 硬件渲染云游戏`;
+
+    const cloudImg = document.getElementById('cloudScreen');
+    const overlay = document.getElementById('connectingOverlay');
+    const touchControls = document.getElementById('touchControls');
+    const roleBadge = document.getElementById('roleBadge');
+    const queueDock = document.getElementById('queueDock');
+    const queuePosBadge = document.getElementById('queuePosBadge');
+    const queueNoticeText = document.getElementById('queueNoticeText');
+    const queueSubText = document.getElementById('queueSubText');
+    const turnAlert = document.getElementById('turnAlert');
+    const hudTimeLeft = document.getElementById('hudTimeLeft');
+    const hudQueueLen = document.getElementById('hudQueueLen');
+
+    let currentRole = 'unknown';
+    let localSecondsLeft = 0;
+
+    function formatTime(sec) {
+      if (!sec || sec < 0) return '00:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // 1. Send start / join command to server
+    async function startCloudSession() {
+      try {
+        const res = await fetch('/api/cloud/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            rel_path: relPath,
+            system: system,
+            title: title,
+            session_id: sessionId,
+            player_name: playerName
+          })
+        });
+        const data = await res.json();
+        
+        // Connect stream
+        cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+        cloudImg.style.display = 'block';
+        cloudImg.onload = () => {
+          overlay.classList.add('hidden');
+        };
+        cloudImg.onerror = () => {
+          console.warn('[CloudPlayer] Stream interrupted or waiting for frame, retrying in 1.2s...');
+          setTimeout(() => {
+            cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+          }, 1200);
+        };
+
+        if (data.queue) {
+          updateQueueState(data.queue);
+        }
+      } catch (err) {
+        alert('无法连接到随身 WiFi 云端引擎: ' + err.message);
+      }
+    }
+
+    // 2. Queue state updater
+    function updateQueueState(q) {
+      const prevRole = currentRole;
+      currentRole = q.role || 'spectator';
+      localSecondsLeft = q.time_left_sec || q.current_left_sec || 0;
+      hudQueueLen.textContent = `${q.queue_len || 0} 人`;
+
+      if (currentRole === 'player') {
+        roleBadge.className = 'badge-role badge-player';
+        roleBadge.textContent = '🎮 独占操控中';
+        touchControls.classList.remove('controls-locked');
+        queueDock.classList.add('hidden');
+        hudTimeLeft.textContent = formatTime(localSecondsLeft);
+
+        // Turn promotion alert & switch stream
+        if (prevRole === 'queued' || prevRole === 'spectator') {
+          cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+          showTurnAlert();
+        }
+      } else if (currentRole === 'queued') {
+        roleBadge.className = 'badge-role badge-queued';
+        roleBadge.textContent = `⏳ 排队中 (第 ${q.queue_position} 位)`;
+        touchControls.classList.add('controls-locked');
+        queueDock.classList.remove('hidden');
+
+        queuePosBadge.textContent = `排队第 ${q.queue_position} 位`;
+        const activeNames = (q.active_players || []).map(p => p.player_name).join(' & ');
+        const activeCount = (q.active_players || []).length;
+        const maxSlots = q.max_slots || 2;
+        queueNoticeText.textContent = `显卡满载 (${activeCount}/${maxSlots}) | 正在激战: [${activeNames || '玩家'}]`;
+        queueSubText.textContent = `预计等待约 ${formatTime(q.est_wait_sec)} · 观战中（玩家45秒挂机自动换人）· 随时可免排队玩单机`;
+        hudTimeLeft.textContent = `排队中 (${formatTime(q.est_wait_sec)})`;
+      } else {
+        roleBadge.className = 'badge-role badge-spectator';
+        roleBadge.textContent = '👀 实时观战中';
+        touchControls.classList.add('controls-locked');
+        queueDock.classList.remove('hidden');
+        queuePosBadge.textContent = '观战模式';
+        const activeNames = (q.active_players || []).map(p => p.player_name).join(' & ');
+        queueNoticeText.textContent = `当前操作玩家: [${activeNames || '空闲'}]`;
+        queueSubText.textContent = '您正在观战，可随时免排队启动独立单机版畅玩';
+      }
+    }
+
+    function showTurnAlert() {
+      turnAlert.classList.remove('hidden');
+      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+      setTimeout(() => {
+        turnAlert.classList.add('hidden');
+      }, 4000);
+    }
+
+    // 3. Heartbeat polling (every 2.5s)
+    async function pollHeartbeat() {
+      try {
+        const res = await fetch('/api/cloud/heartbeat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({session_id: sessionId})
+        });
+        if (res.ok) {
+          const q = await res.json();
+          updateQueueState(q);
+        }
+      } catch (e) {}
+    }
+    setInterval(pollHeartbeat, 2500);
+
+    // Local 1s countdown ticker
+    setInterval(() => {
+      if (localSecondsLeft > 0) {
+        localSecondsLeft--;
+        if (currentRole === 'player') {
+          hudTimeLeft.textContent = formatTime(localSecondsLeft);
+        }
+      }
+    }, 1000);
+
+    // 4. Poll status & Hardware HUD
+    async function pollStatus() {
+      try {
+        const res = await fetch(`/api/cloud/status?session_id=${encodeURIComponent(sessionId)}`);
+        if (res.ok) {
+          const s = await res.json();
+          if (s.fps > 0) {
+            document.getElementById('hudFps').textContent = `${s.fps} FPS`;
+            document.getElementById('hudTemp').textContent = s.cpu_temp;
+            if (overlay && !overlay.classList.contains('hidden')) {
+              overlay.classList.add('hidden');
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    setInterval(pollStatus, 3000);
+
+    // 5. Ultra-Low Latency Input Dispatch
+    const keyState = {};
+
+    function sendInput(btn, state) {
+      if (currentRole !== 'player') return; // Ignore inputs when not player
+      if (keyState[btn] === state) return;
+      keyState[btn] = state;
+
+      fetch('/api/cloud/input', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        keepalive: true,
+        body: JSON.stringify({btn: btn, state: state, session_id: sessionId})
+      }).catch(() => {});
+    }
+
+    // Keyboard bindings (Desktop)
+    const KEY_MAP = {
+      'ArrowUp': 'UP',
+      'KeyW': 'UP',
+      'ArrowDown': 'DOWN',
+      'KeyS': 'DOWN',
+      'ArrowLeft': 'LEFT',
+      'KeyA': 'LEFT',
+      'ArrowRight': 'RIGHT',
+      'KeyD': 'RIGHT',
+      'KeyJ': 'B',
+      'KeyZ': 'B',
+      'KeyK': 'A',
+      'KeyX': 'A',
+      'Enter': 'START',
+      'Space': 'SELECT',
+      'ShiftRight': 'SELECT',
+      'KeyQ': 'L',
+      'KeyE': 'R'
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (currentRole !== 'player') return;
+      const btn = KEY_MAP[e.code];
+      if (btn) {
+        e.preventDefault();
+        sendInput(btn, 1);
+        highlightTouchBtn(btn, true);
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (currentRole !== 'player') return;
+      const btn = KEY_MAP[e.code];
+      if (btn) {
+        e.preventDefault();
+        sendInput(btn, 0);
+        highlightTouchBtn(btn, false);
+      }
+    });
+
+    // Touch controls (Mobile)
+    document.querySelectorAll('[data-btn]').forEach(el => {
+      const btn = el.dataset.btn;
+      el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sendInput(btn, 1);
+        el.classList.add('pressed');
+      }, {passive: false});
+
+      el.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        sendInput(btn, 0);
+        el.classList.remove('pressed');
+      }, {passive: false});
+
+      el.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        sendInput(btn, 0);
+        el.classList.remove('pressed');
+      }, {passive: false});
+    });
+
+    function highlightTouchBtn(btn, pressed) {
+      const el = document.querySelector(`[data-btn="${btn}"]`);
+      if (el) {
+        if (pressed) el.classList.add('pressed');
+        else el.classList.remove('pressed');
+      }
+    }
+
+    // Physical Gamepad API Polling
+    let prevPadButtons = {};
+    function pollGamepads() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      if (pads && pads[0] && currentRole === 'player') {
+        const pad = pads[0];
+        const padMap = {
+          0: 'A',
+          1: 'B',
+          8: 'SELECT',
+          9: 'START',
+          12: 'UP',
+          13: 'DOWN',
+          14: 'LEFT',
+          15: 'RIGHT',
+          4: 'L',
+          5: 'R'
+        };
+        for (const [idx, btnName] of Object.entries(padMap)) {
+          const pressed = pad.buttons[idx] && pad.buttons[idx].pressed ? 1 : 0;
+          if (prevPadButtons[btnName] !== pressed) {
+            prevPadButtons[btnName] = pressed;
+            sendInput(btnName, pressed);
+            highlightTouchBtn(btnName, pressed === 1);
+          }
+        }
+      }
+      requestAnimationFrame(pollGamepads);
+    }
+    requestAnimationFrame(pollGamepads);
+
+    // Leave queue or session on page exit
+    window.addEventListener('beforeunload', () => {
+      navigator.sendBeacon('/api/cloud/leave', JSON.stringify({session_id: sessionId}));
+    });
+
+    startCloudSession();
+  </script>
+</body>
+</html>
