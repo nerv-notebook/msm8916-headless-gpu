@@ -19,7 +19,7 @@ WORKER_SCRIPT = os.path.join(BASE_DIR, "game_worker.py")
 PYTHON_BIN = sys.executable
 
 class SlotManager:
-    def __init__(self, max_slots=2, idle_timeout_sec=45, max_turn_sec=360, dc_timeout_sec=15):
+    def __init__(self, max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=15):
         self.max_slots = max_slots
         self.idle_timeout_sec = idle_timeout_sec
         self.max_turn_sec = max_turn_sec
@@ -37,7 +37,8 @@ class SlotManager:
         port = self._get_worker_port(slot_id)
         # Kill any zombie on that port first
         try:
-            subprocess.run(["pkill", "-f", f"game_worker.py --port {port}"], timeout=2)
+            subprocess.run(["pkill", "-9", "-f", f"game_worker.py --port {port}"], timeout=2)
+            time.sleep(0.15)
         except Exception:
             pass
 
@@ -48,11 +49,11 @@ class SlotManager:
             "--system", system,
             "--title", title
         ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd)
         
         # Wait up to 2 seconds for worker HTTP to come alive
         alive = False
-        for _ in range(20):
+        for _ in range(25):
             time.sleep(0.1)
             try:
                 res = urllib.request.urlopen(f"http://127.0.0.1:{port}/status", timeout=0.2)
@@ -283,11 +284,16 @@ class SlotManager:
 
             # 2. Idle timeout & turn limit (only enforced if someone is waiting in queue!)
             if self.waiting_queue:
+                # If queue pressure just began, give player a full turn from this moment
+                if not slot.get("queue_pressure_started"):
+                    slot["queue_pressure_started"] = True
+                    slot["start_time"] = now
+
                 elapsed = now - slot["start_time"]
                 idle = now - slot["last_input"]
 
                 if idle >= self.idle_timeout_sec:
-                    print(f"[SlotManager] Slot {slot_id} ({slot['player_name']}) kicked for 45s idle while queue waiting.")
+                    print(f"[SlotManager] Slot {slot_id} ({slot['player_name']}) kicked for {self.idle_timeout_sec}s idle while queue waiting.")
                     self._stop_slot(slot_id)
                     self._promote_next(slot_id)
                     continue
@@ -298,32 +304,36 @@ class SlotManager:
                     self._promote_next(slot_id)
                     continue
             else:
-                # No queue -> auto extend turn
-                elapsed = now - slot["start_time"]
-                if elapsed >= self.max_turn_sec:
-                    slot["start_time"] = now - (self.max_turn_sec - 180) # extend 3 mins
+                # No queue -> unlimited play! Keep refreshing start_time so elapsed stays 0
+                slot["queue_pressure_started"] = False
+                slot["start_time"] = now
 
     def _get_active_players_summary(self):
         active = []
+        is_unlimited = (len(self.waiting_queue) == 0)
+        now = time.time()
         for slot_id, slot in self.slots.items():
             if slot:
-                elapsed = time.time() - slot["start_time"]
-                time_left = max(1, int(self.max_turn_sec - elapsed))
+                elapsed = now - slot["start_time"]
+                time_left = self.max_turn_sec if is_unlimited else max(1, int(self.max_turn_sec - elapsed))
                 active.append({
                     "slot_id": slot_id,
                     "player_name": slot["player_name"],
                     "title": slot["title"],
                     "system": slot["system"],
-                    "time_left_sec": time_left
+                    "time_left_sec": time_left,
+                    "is_unlimited": is_unlimited
                 })
         return active
 
     def _make_player_resp(self, session_id, slot_id, time_left):
+        is_unlimited = (len(self.waiting_queue) == 0)
         return {
             "role": "player",
             "session_id": session_id,
             "slot_id": slot_id,
-            "time_left_sec": time_left,
+            "time_left_sec": self.max_turn_sec if is_unlimited else time_left,
+            "is_unlimited": is_unlimited,
             "max_slots": self.max_slots,
             "queue_len": len(self.waiting_queue),
             "active_players": self._get_active_players_summary()
@@ -332,8 +342,8 @@ class SlotManager:
     def _make_queued_resp(self, session_id, position):
         active = self._get_active_players_summary()
         # Find shortest time left among active slots
-        shortest_left = min([p["time_left_sec"] for p in active]) if active else 60
-        est_wait = shortest_left + ((position - 1) * (self.max_turn_sec // self.max_slots))
+        shortest_left = min([p["time_left_sec"] for p in active]) if active else self.max_turn_sec
+        est_wait = shortest_left + ((position - 1) * (self.max_turn_sec // max(1, self.max_slots)))
         return {
             "role": "queued",
             "session_id": session_id,

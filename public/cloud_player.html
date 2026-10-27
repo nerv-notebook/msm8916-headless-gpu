@@ -844,7 +844,7 @@
 
       <!-- Turn Alert Pop -->
       <div class="turn-alert hidden" id="turnAlert">
-        🎉 轮到你了！已获得操控权限，独占 6 分钟畅玩！
+        🎉 轮到你了！已获得操控权限，无人排队可无限畅玩！
       </div>
 
       <!-- Queue Floating Dock for Waiters -->
@@ -1049,19 +1049,28 @@
       }
     }
 
+    let latestQueueData = null;
+
     // 2. Queue state updater
     function updateQueueState(q) {
+      latestQueueData = q;
       const prevRole = currentRole;
       currentRole = q.role || 'spectator';
       localSecondsLeft = q.time_left_sec || q.current_left_sec || 0;
-      hudQueueLen.textContent = `${q.queue_len || 0} 人`;
+      const queueCount = q.queue_len || 0;
+      hudQueueLen.textContent = `${queueCount} 人`;
 
       if (currentRole === 'player') {
         roleBadge.className = 'badge-role badge-player';
         roleBadge.textContent = '🎮 独占操控中';
         touchControls.classList.remove('controls-locked');
         queueDock.classList.add('hidden');
-        hudTimeLeft.textContent = formatTime(localSecondsLeft);
+
+        if (q.is_unlimited || queueCount === 0) {
+          hudTimeLeft.innerHTML = '<span style="color:#c6f03a; font-weight:800;">🟢 无限畅玩</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal;">(无排队)</span>';
+        } else {
+          hudTimeLeft.innerHTML = `⏳ <b>${formatTime(localSecondsLeft)}</b> <span style="font-size:10px; color:#ffb400; font-weight:normal;">(${queueCount}人轮候)</span>`;
+        }
 
         // Turn promotion alert & switch stream
         if (prevRole === 'queued' || prevRole === 'spectator') {
@@ -1079,8 +1088,8 @@
         const activeCount = (q.active_players || []).length;
         const maxSlots = q.max_slots || 2;
         queueNoticeText.textContent = `显卡满载 (${activeCount}/${maxSlots}) | 正在激战: [${activeNames || '玩家'}]`;
-        queueSubText.textContent = `预计等待约 ${formatTime(q.est_wait_sec)} · 观战中（玩家45秒挂机自动换人）· 随时可免排队玩单机`;
-        hudTimeLeft.textContent = `排队中 (${formatTime(q.est_wait_sec)})`;
+        queueSubText.textContent = `预计等待约 ${formatTime(q.est_wait_sec)} · 观战中（玩家挂机60秒或局时结束自动轮换）· 随时可免排队玩单机`;
+        hudTimeLeft.innerHTML = `⏳ <b>${formatTime(q.est_wait_sec)}</b>`;
       } else {
         roleBadge.className = 'badge-role badge-spectator';
         roleBadge.textContent = '👀 实时观战中';
@@ -1090,6 +1099,7 @@
         const activeNames = (q.active_players || []).map(p => p.player_name).join(' & ');
         queueNoticeText.textContent = `当前操作玩家: [${activeNames || '空闲'}]`;
         queueSubText.textContent = '您正在观战，可随时免排队启动独立单机版畅玩';
+        hudTimeLeft.innerHTML = '<span style="color:#a5b4fc;">观战中</span>';
       }
     }
 
@@ -1119,10 +1129,14 @@
 
     // Local 1s countdown ticker
     setInterval(() => {
-      if (localSecondsLeft > 0) {
-        localSecondsLeft--;
-        if (currentRole === 'player') {
-          hudTimeLeft.textContent = formatTime(localSecondsLeft);
+      if (currentRole === 'player') {
+        const queueCount = (latestQueueData && latestQueueData.queue_len) || 0;
+        const isUnlimited = (latestQueueData && latestQueueData.is_unlimited) || (queueCount === 0);
+        if (isUnlimited) {
+          hudTimeLeft.innerHTML = '<span style="color:#c6f03a; font-weight:800;">🟢 无限畅玩</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal;">(无排队)</span>';
+        } else if (localSecondsLeft > 0) {
+          localSecondsLeft--;
+          hudTimeLeft.innerHTML = `⏳ <b>${formatTime(localSecondsLeft)}</b> <span style="font-size:10px; color:#ffb400; font-weight:normal;">(${queueCount}人轮候)</span>`;
         }
       }
     }, 1000);

@@ -44,7 +44,7 @@ for s in ["gba", "nes", "snes", "gbc", "segaMD"]:
 # Multi-Slot Concurrent Hardware-Accelerated Adreno 306 Cloud Gaming Engine
 try:
     from slot_manager import SlotManager
-    slot_mgr = SlotManager(max_slots=2, idle_timeout_sec=45, max_turn_sec=360, dc_timeout_sec=15)
+    slot_mgr = SlotManager(max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=15)
 except Exception as e:
     print(f"[WARN] SlotManager initialization failed: {e}", file=sys.stderr)
     slot_mgr = None
