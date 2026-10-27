@@ -3,3 +3,19 @@ __pycache__/
 *.pyc
 *.pyo
 *~
+
+# Game ROMs & Saves (Prevent accidental copyright commits)
+roms/
+saves/
+*.nes
+*.gba
+*.gbc
+*.gb
+*.sfc
+*.smc
+*.bin
+*.state
+
+# Runtime logs & temporary tokens
+*.log
+public/tunnel_url.txt

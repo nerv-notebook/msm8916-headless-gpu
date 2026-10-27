@@ -180,6 +180,47 @@
       box-shadow: 0 0 14px rgba(255, 180, 0, 0.4);
     }
 
+    .btn-start-game {
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      border: 1px solid #00f2fe;
+      border-radius: 20px;
+      color: #0d061e;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.4);
+      transition: all 0.2s ease;
+    }
+    .btn-start-game:hover {
+      filter: brightness(1.15);
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.7);
+    }
+
+    .btn-reset-slot {
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #ff007f, #7928ca);
+      border: 1px solid #ff007f;
+      border-radius: 20px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 0 14px rgba(255, 0, 127, 0.4);
+      transition: all 0.2s ease;
+    }
+    .btn-reset-slot:hover {
+      filter: brightness(1.2);
+      transform: scale(1.04);
+    }
+
     .btn-fast-wasm {
       padding: 6px 14px;
       background: rgba(198, 240, 58, 0.12);
@@ -223,28 +264,44 @@
       width: 100%;
       height: 100%;
       min-height: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       position: relative;
       background: #000;
       overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    .cloud-img {
-      width: 100%;
+    .screen-viewport {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: auto;
       height: 100%;
       max-width: 100%;
       max-height: 100%;
-      object-fit: contain;
+      aspect-ratio: 4 / 3;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    .cloud-canvas, .cloud-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: -moz-crisp-edges;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       box-shadow: 0 0 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(198, 240, 58, 0.12);
       cursor: pointer;
-      transition: transform 0.2s;
     }
 
-    .cloud-img.scale-cover {
+    .cloud-canvas.scale-cover, .cloud-img.scale-cover {
       object-fit: cover !important;
     }
 
@@ -957,11 +1014,14 @@
       </div>
 
       <div class="cloud-actions">
+        <button class="btn-start-game" id="btnStartGame" onclick="triggerStartButton()" title="开始游戏 / 跳过开场动画 (回车键)">▶ 开始游戏 (Enter)</button>
+        <button class="btn-ctrl-settings" id="btnTakeover" onclick="takeoverSession()" title="如果你在另一个浏览器打开了此游戏，点击立即接管游戏控制权！">🎮 接管控制</button>
+        <button class="btn-ctrl-settings" id="btnRestartGame" onclick="restartCloudGame()" title="重新开始当前游戏 (从第一关开始)">🔄 重新开局</button>
         <button class="btn-fast-forward" id="btnFastForward" onclick="toggleFastForward()" title="云端 2x 速度快进 (快捷键: 按住或点按 Tab)">⏩ 2x 快进</button>
         <button class="btn-ctrl-settings" id="btnToggleTouch" onclick="toggleVirtualTouchpadQuick()" title="切换屏幕虚拟手柄 (鼠标/触控点击)">📱 屏幕手柄</button>
         <button class="btn-ctrl-settings" id="btnControls" onclick="openControlModal()" title="按键说明与自定义控制设置">🎮 按键设置</button>
         <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏沉浸畅玩">⛶ 全屏</button>
-        <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="免排队直接在客户端以 WebAssembly 畅玩">⚡ 免排队玩单机</a>
+        <a href="#" class="btn-fast-wasm" id="btnFastWasm" title="网络若有延迟，可一键切换为客户端本地渲染，满帧60FPS且绝对0延迟！">⚡ 0延迟单机(本地60FPS)</a>
         <a href="/" class="btn-exit" id="btnExit">退出</a>
       </div>
     </header>
@@ -978,7 +1038,7 @@
       <!-- Gameplay Tip Banner -->
       <div class="gameplay-tip-banner" id="gameplayTipBanner">
         <span>💡</span>
-        <span><b>快速开始：</b> 按键盘 <b>Enter (回车)</b> 开始游戏/跳过片头；<b>空格键 (Space) 或 K</b> 为确认与跳跃；<b>WASD</b> 控制移动。</span>
+        <span><b>操作指南：</b> 按 <b>Enter (回车)</b> 开始游戏/跳过片头；<b>空格键 (Space) 或 K</b> 确认与跳跃；<b>WASD</b> 移动；网络若有延迟可随时点右上角 <b>[⚡ 0延迟单机]</b> 满帧畅玩。</span>
         <button class="tip-close-btn" onclick="document.getElementById('gameplayTipBanner').style.display='none'">✕</button>
       </div>
 
@@ -992,7 +1052,7 @@
 
       <!-- IME Alert Pop -->
       <div class="ime-alert hidden" id="imeAlert">
-        ⚠️ 检测到中文输入法！请按键盘 <b>Shift</b> 键切换为<b>英文输入状态</b>方可控制！
+        ⚠️ 检测到中文输入法！请按键盘 <b>Caps Lock</b> (Mac) 或 <b>Shift</b> (Windows) 切换为英文方可控制！
       </div>
 
       <!-- Queue Floating Dock for Waiters -->
@@ -1005,12 +1065,17 @@
           <div class="queue-sub" id="queueSubText">您正在实时观战，也可随时免排队直接玩单机版</div>
         </div>
         <div class="queue-actions">
-          <a href="#" class="btn-switch-wasm" id="btnSwitchWasm">⚡ 免排队立即玩 (WASM)</a>
+          <button class="btn-reset-slot" id="btnTakeoverDock" onclick="takeoverSession()" style="background: rgba(0, 242, 254, 0.2); border-color: #00f2fe; color: #00f2fe;" title="从其他浏览器接管当前运行中游戏的操控权">🎮 立即接管控制</button>
+          <button class="btn-reset-slot" id="btnForceResetSlot" onclick="forceResetSlots()" title="清除可能卡住的会话，立即抢占卡位开玩">⚡ 强制重置开玩</button>
+          <a href="#" class="btn-switch-wasm" id="btnSwitchWasm">⚡ 切换0延迟单机 (本地60FPS)</a>
         </div>
       </div>
 
-      <!-- Live MJPEG Stream -->
-      <img id="cloudScreen" class="cloud-img" alt="MSM8916 Cloud Stream" style="display: none;" ondblclick="toggleFullscreen()" title="双击可进入/退出全屏">
+      <!-- Live Hardware Stream Display (Safari WebKit Pixel-Perfect Centered Viewport) -->
+      <div class="screen-viewport" id="screenViewport">
+        <canvas id="cloudCanvas" class="cloud-canvas" tabindex="0" ondblclick="toggleFullscreen()" title="点击聚焦键盘，双击全屏"></canvas>
+        <img id="cloudScreen" class="cloud-canvas" alt="MSM8916 Cloud Stream" style="display: none;" ondblclick="toggleFullscreen()" title="双击可进入/退出全屏">
+      </div>
 
       <!-- Desktop Bottom Quick-Key Guide Bar -->
       <div class="desktop-control-bar" id="desktopControlBar">
@@ -1131,10 +1196,10 @@
     const title = params.get('title') || '经典怀旧游戏';
 
     // Session & Player Identity
-    let sessionId = sessionStorage.getItem('retro_session_id');
+    let sessionId = localStorage.getItem('retro_session_id');
     if (!sessionId) {
       sessionId = 'usr_' + Math.random().toString(36).substring(2, 8);
-      sessionStorage.setItem('retro_session_id', sessionId);
+      localStorage.setItem('retro_session_id', sessionId);
     }
     const playerName = localStorage.getItem('retro_player_name') || ('玩家 #' + sessionId.slice(-4).toUpperCase());
 
@@ -1146,7 +1211,9 @@
     document.getElementById('gameTitle').textContent = title;
     document.title = `${title} | RetroStick 硬件渲染云游戏`;
 
+    const cloudCanvas = document.getElementById('cloudCanvas');
     const cloudImg = document.getElementById('cloudScreen');
+    const canvasCtx = cloudCanvas ? cloudCanvas.getContext('2d') : null;
     const overlay = document.getElementById('connectingOverlay');
     const touchControls = document.getElementById('touchControls');
     const roleBadge = document.getElementById('roleBadge');
@@ -1157,6 +1224,143 @@
     const turnAlert = document.getElementById('turnAlert');
     const hudTimeLeft = document.getElementById('hudTimeLeft');
     const hudQueueLen = document.getElementById('hudQueueLen');
+
+    let streamAbortController = null;
+    let lastBlobUrl = null;
+
+    function connectStream() {
+      if (streamAbortController) {
+        try { streamAbortController.abort(); } catch(e) {}
+      }
+      streamAbortController = new AbortController();
+
+      // Ensure overlay is dismissed automatically once stream is requested
+      setTimeout(() => {
+        if (overlay && !overlay.classList.contains('hidden')) {
+          overlay.classList.add('hidden');
+        }
+      }, 1500);
+
+      startStreamConsumer(streamAbortController.signal);
+    }
+
+    async function startStreamConsumer(abortSignal) {
+      const streamUrl = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+      try {
+        const res = await fetch(streamUrl, {
+          signal: abortSignal,
+          headers: { 'Accept': 'multipart/x-mixed-replace, image/jpeg, */*' }
+        });
+
+        if (!res.ok) {
+          throw new Error('Stream status ' + res.status);
+        }
+
+        const reader = res.body.getReader();
+        let buffer = new Uint8Array(0);
+        let frameCount = 0;
+        let isDecoding = false;
+        let pendingFrameBytes = null;
+
+        function renderLatestFrame() {
+          if (isDecoding || !pendingFrameBytes) return;
+          const frameBytes = pendingFrameBytes;
+          pendingFrameBytes = null;
+          isDecoding = true;
+
+          const blob = new Blob([frameBytes], { type: 'image/jpeg' });
+          if (window.createImageBitmap && cloudCanvas) {
+            createImageBitmap(blob).then(bitmap => {
+              if (cloudCanvas.width !== bitmap.width || cloudCanvas.height !== bitmap.height) {
+                cloudCanvas.width = bitmap.width;
+                cloudCanvas.height = bitmap.height;
+                const vp = document.getElementById('screenViewport');
+                if (vp) vp.style.aspectRatio = `${bitmap.width} / ${bitmap.height}`;
+              }
+              canvasCtx.imageSmoothingEnabled = false;
+              if ('webkitImageSmoothingEnabled' in canvasCtx) canvasCtx.webkitImageSmoothingEnabled = false;
+              if ('mozImageSmoothingEnabled' in canvasCtx) canvasCtx.mozImageSmoothingEnabled = false;
+              if ('msImageSmoothingEnabled' in canvasCtx) canvasCtx.msImageSmoothingEnabled = false;
+              canvasCtx.drawImage(bitmap, 0, 0);
+              bitmap.close();
+              isDecoding = false;
+              if (pendingFrameBytes) renderLatestFrame();
+            }).catch(() => {
+              isDecoding = false;
+              if (pendingFrameBytes) renderLatestFrame();
+            });
+          } else if (cloudImg) {
+            const url = URL.createObjectURL(blob);
+            cloudImg.src = url;
+            cloudImg.style.display = 'block';
+            if (cloudCanvas) cloudCanvas.style.display = 'none';
+            if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+            lastBlobUrl = url;
+            isDecoding = false;
+            if (pendingFrameBytes) renderLatestFrame();
+          } else {
+            isDecoding = false;
+          }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const newBuf = new Uint8Array(buffer.length + value.length);
+          newBuf.set(buffer);
+          newBuf.set(value, buffer.length);
+          buffer = newBuf;
+
+          let latestFrameInChunk = null;
+          while (true) {
+            let soi = -1;
+            for (let i = 0; i < buffer.length - 1; i++) {
+              if (buffer[i] === 0xFF && buffer[i+1] === 0xD8) {
+                soi = i;
+                break;
+              }
+            }
+            if (soi === -1) {
+              if (buffer.length > 16384) buffer = buffer.subarray(buffer.length - 2048);
+              break;
+            }
+
+            let eoi = -1;
+            for (let i = soi + 2; i < buffer.length - 1; i++) {
+              if (buffer[i] === 0xFF && buffer[i+1] === 0xD9) {
+                eoi = i + 2;
+                break;
+              }
+            }
+            if (eoi === -1) break;
+
+            latestFrameInChunk = buffer.subarray(soi, eoi);
+            buffer = buffer.subarray(eoi);
+
+            frameCount++;
+            if (frameCount === 1 && overlay) {
+              overlay.classList.add('hidden');
+            }
+          }
+
+          if (latestFrameInChunk) {
+            pendingFrameBytes = latestFrameInChunk;
+            renderLatestFrame();
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('[StreamConsumer] Stream interrupted, retrying in 1.2s...', err);
+        if (cloudImg) {
+          cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+          cloudImg.style.display = 'block';
+        }
+        setTimeout(() => {
+          if (!abortSignal.aborted) startStreamConsumer(abortSignal);
+        }, 1200);
+      }
+    }
 
     let currentRole = 'unknown';
     let localSecondsLeft = 0;
@@ -1184,21 +1388,16 @@
         });
         const data = await res.json();
         
-        // Connect stream
-        cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
-        cloudImg.style.display = 'block';
-        cloudImg.onload = () => {
-          overlay.classList.add('hidden');
-        };
-        cloudImg.onerror = () => {
-          console.warn('[CloudPlayer] Stream interrupted or waiting for frame, retrying in 1.2s...');
-          setTimeout(() => {
-            cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
-          }, 1200);
-        };
+        // Connect stream via robust universal consumer
+        connectStream();
 
         if (data.queue) {
           updateQueueState(data.queue);
+          if (data.queue.role !== "player" && (!data.queue.active_players || data.queue.active_players.length === 0)) {
+            console.log("[Queue] Empty/stale zombie slot, auto-resetting...");
+            await fetch("/api/cloud/reset", { method: "POST" });
+            return startCloudSession();
+          }
         }
       } catch (err) {
         alert('无法连接到随身 WiFi 云端引擎: ' + err.message);
@@ -1221,6 +1420,10 @@
         roleBadge.textContent = '🎮 独占操控中';
         touchControls.classList.remove('controls-locked');
         queueDock.classList.add('hidden');
+        if (!hasScheduledAutoStart) {
+          hasScheduledAutoStart = true;
+          scheduleAutoStart();
+        }
 
         if (q.is_unlimited || queueCount === 0) {
           hudTimeLeft.innerHTML = '<span style="color:#c6f03a; font-weight:800;">🟢 无限畅玩</span> <span style="font-size:10px; color:#94a3b8; font-weight:normal;">(无排队)</span>';
@@ -1230,7 +1433,7 @@
 
         // Turn promotion alert & switch stream
         if (prevRole === 'queued' || prevRole === 'spectator') {
-          cloudImg.src = `/api/cloud/stream?session_id=${encodeURIComponent(sessionId)}&t=${Date.now()}`;
+          connectStream();
           showTurnAlert();
         }
       } else if (currentRole === 'queued') {
@@ -1331,6 +1534,29 @@
       'FASTFORWARD': '⏩ 加速'
     };
 
+    let inputSeq = 0;
+    let heldKeysTimer = null;
+
+    function sendInputPayload(btn, state) {
+      if (currentRole !== 'player') return;
+      const activeList = Array.from(activeButtons);
+      renderActiveKeys(activeList);
+
+      const seq = ++inputSeq;
+      fetch('/api/cloud/input', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        keepalive: true,
+        body: JSON.stringify({
+          seq: seq,
+          btn: btn,
+          state: state,
+          active: activeList,
+          session_id: sessionId
+        })
+      }).catch(() => {});
+    }
+
     function sendInput(btn, state) {
       if (currentRole !== 'player') return;
       if (state) {
@@ -1338,21 +1564,149 @@
       } else {
         activeButtons.delete(btn);
       }
-      
-      const activeList = Array.from(activeButtons);
-      renderActiveKeys(activeList);
+      sendInputPayload(btn, state);
 
-      fetch('/api/cloud/input', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        keepalive: true,
-        body: JSON.stringify({
-          btn: btn,
-          state: state,
-          active: activeList,
-          session_id: sessionId
-        })
-      }).catch(() => {});
+      if (activeButtons.size > 0) {
+        if (!heldKeysTimer) {
+          heldKeysTimer = setInterval(() => {
+            if (activeButtons.size > 0) {
+              const anyBtn = activeButtons.values().next().value;
+              sendInputPayload(anyBtn, 1);
+            } else {
+              clearInterval(heldKeysTimer);
+              heldKeysTimer = null;
+            }
+          }, 70);
+        }
+      } else {
+        if (heldKeysTimer) {
+          clearInterval(heldKeysTimer);
+          heldKeysTimer = null;
+        }
+        // Rapid release redundancy packet to ensure no sticking under packet loss
+        setTimeout(() => {
+          if (activeButtons.size === 0) {
+            sendInputPayload(btn, 0);
+          }
+        }, 35);
+      }
+    }
+
+    let hasScheduledAutoStart = false;
+    let gameStarted = false;
+
+    function scheduleAutoStart() {
+      setTimeout(() => {
+        gameStarted = true;
+        const btn = document.getElementById('btnStartGame');
+        if (btn) btn.innerHTML = '⏸️ 暂停/继续 (Enter)';
+        const tip = document.getElementById("gameplayTipBanner");
+        if (tip) {
+          tip.innerHTML = "<span>🎮</span> <span><b>游戏进行中！</b> 使用键盘 <b>WASD</b> 移动，<b>空格 (Space) 或 K</b> 跳跃，<b>J</b> 加速跑。</span>";
+        }
+      }, 3000);
+    }
+
+    async function restartCloudGame() {
+      const btn = document.getElementById('btnRestartGame');
+      if (btn) btn.textContent = '⏳ 重启中...';
+      try {
+        await fetch('/api/cloud/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            rel_path: relPath,
+            system: system,
+            title: title,
+            session_id: sessionId,
+            player_name: playerName,
+            force_restart: true
+          })
+        });
+        setTimeout(() => {
+          if (btn) btn.textContent = '🔄 重新开局';
+          const startBtn = document.getElementById('btnStartGame');
+          if (startBtn) startBtn.innerHTML = '▶ 开始游戏 (Enter)';
+          gameStarted = false;
+          connectStream();
+          const tip = document.getElementById("gameplayTipBanner");
+          if (tip) {
+            tip.innerHTML = "<span>🎮</span> <span><b>游戏已重启！</b> 正在载入第一关，使用键盘 <b>WASD</b> 移动，<b>空格 (Space) 或 K</b> 跳跃，<b>J</b> 加速跑。</span>";
+          }
+          scheduleAutoStart();
+        }, 500);
+      } catch (e) {
+        if (btn) btn.textContent = '🔄 重新开局';
+      }
+    }
+
+    async function takeoverSession() {
+      const btn = document.getElementById('btnTakeover');
+      if (btn) btn.textContent = '⏳ 接管中...';
+      try {
+        const res = await fetch('/api/cloud/takeover', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            session_id: sessionId,
+            player_name: playerName
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          currentRole = 'player';
+          if (roleBadge) {
+            roleBadge.className = 'badge-role badge-player';
+            roleBadge.textContent = '🎮 独占操控中';
+          }
+          if (touchControls) touchControls.classList.remove('controls-locked');
+          if (queueDock) queueDock.classList.add('hidden');
+          connectStream();
+          if (btn) btn.textContent = '✅ 已接管';
+          setTimeout(() => { if (btn) btn.textContent = '🎮 接管控制'; }, 2000);
+          if (cloudCanvas) cloudCanvas.focus();
+        } else {
+          alert('接管失败: ' + (data.message || '无运行中的游戏'));
+          if (btn) btn.textContent = '🎮 接管控制';
+        }
+      } catch (e) {
+        if (btn) btn.textContent = '🎮 接管控制';
+      }
+    }
+
+    function triggerStartButton() {
+      if (currentRole !== 'player') {
+        forceResetSlots();
+        return;
+      }
+      const btn = document.getElementById('btnStartGame');
+      if (btn) {
+        btn.style.transform = 'scale(0.92)';
+        btn.style.filter = 'brightness(1.4)';
+        setTimeout(() => {
+          btn.style.transform = '';
+          btn.style.filter = '';
+        }, 300);
+      }
+      sendInput('START', 1);
+      setTimeout(() => {
+        sendInput('START', 0);
+        if (cloudCanvas) cloudCanvas.focus();
+      }, 300);
+    }
+
+    async function forceResetSlots() {
+      const btn = document.getElementById('btnForceResetSlot');
+      if (btn) btn.textContent = '⏳ 正在重置...';
+      try {
+        await fetch('/api/cloud/reset', { method: 'POST' });
+        setTimeout(() => {
+          if (btn) btn.textContent = '⚡ 强制占位立即玩';
+          startCloudSession();
+        }, 500);
+      } catch (e) {
+        alert('重置卡位失败: ' + e.message);
+      }
     }
 
     function renderActiveKeys(activeList) {
@@ -1545,14 +1899,8 @@
       }, 4000);
     }
 
-    // Global Key Listener
+    // Global Key Listener with Capture Phase so browser/IME cannot swallow keys
     window.addEventListener('keydown', (e) => {
-      // IME composition detection
-      if (e.isComposing || e.keyCode === 229 || e.key === 'Process') {
-        showImeAlert();
-        return;
-      }
-
       // If modal is actively listening to assign a key
       if (activeListenBtn) {
         e.preventDefault();
@@ -1584,19 +1932,38 @@
       }
 
       // Shortcut: F or F11 for fullscreen
-      if ((e.code === 'KeyF' && document.activeElement.tagName !== 'INPUT') || e.code === 'F11') {
+      if ((e.code === 'KeyF' && document.activeElement?.tagName !== 'INPUT') || e.code === 'F11') {
         if (e.code === 'F11') e.preventDefault();
         toggleFullscreen();
         return;
       }
 
-      if (currentRole !== 'player') return;
+      // 1. Resolve game button via physical code or key
       const btn = getMappedButton(e);
+
+      // If user presses game buttons, prevent default immediately so browser/IME cannot intercept
       if (btn) {
         e.preventDefault();
-        sendInput(btn, 1);
+        e.stopPropagation();
       }
-    });
+
+      // 2. IME composition warning
+      if (e.isComposing || e.keyCode === 229 || e.key === 'Process') {
+        showImeAlert();
+      }
+
+      if (currentRole !== 'player') return;
+
+      if (btn) {
+        if (btn === 'START' || btn === 'SELECT') {
+          // Momentary pulse only! Never get stuck in held state
+          sendInput(btn, 1);
+          setTimeout(() => sendInput(btn, 0), 120);
+        } else {
+          sendInput(btn, 1);
+        }
+      }
+    }, { capture: true });
 
     window.addEventListener('keyup', (e) => {
       if (activeListenBtn) return;
@@ -1605,13 +1972,70 @@
         toggleFastForward(false);
         return;
       }
-      if (currentRole !== 'player') return;
       const btn = getMappedButton(e);
       if (btn) {
         e.preventDefault();
-        sendInput(btn, 0);
+        e.stopPropagation();
+        if (currentRole === 'player') {
+          sendInput(btn, 0);
+        }
+      }
+    }, { capture: true });
+
+    // Safety clear all held keys on window blur or tab switch
+    window.addEventListener('blur', () => {
+      if (activeButtons.size > 0) {
+        activeButtons.clear();
+        renderActiveKeys([]);
+        fetch('/api/cloud/input', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          keepalive: true,
+          body: JSON.stringify({
+            btn: 'ALL',
+            state: 0,
+            active: [],
+            session_id: sessionId
+          })
+        }).catch(() => {});
       }
     });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && activeButtons.size > 0) {
+        activeButtons.clear();
+        renderActiveKeys([]);
+      }
+    });
+
+    // Make bottom quick bar badges interactive clickable buttons
+    function initDesktopBarClicks() {
+      document.querySelectorAll('[data-hud-btn]').forEach(el => {
+        const btn = el.dataset.hudBtn;
+        el.style.cursor = 'pointer';
+        el.style.userSelect = 'none';
+        el.title = '点击直接发送 ' + (BTN_SHORT_NAMES[btn] || btn);
+        el.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          try { el.setPointerCapture(e.pointerId); } catch (_) {}
+          if (btn === 'FASTFORWARD') {
+            toggleFastForward();
+          } else {
+            sendInput(btn, 1);
+          }
+        });
+        const handleUp = (e) => {
+          e.preventDefault();
+          try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+          if (btn !== 'FASTFORWARD') {
+            sendInput(btn, 0);
+          }
+        };
+        el.addEventListener('pointerup', handleUp);
+        el.addEventListener('pointercancel', handleUp);
+        el.addEventListener('pointerleave', handleUp);
+      });
+    }
 
     // Window blur safety - auto-release all held keys!
     window.addEventListener('blur', () => {
@@ -1633,8 +2057,13 @@
     });
 
     document.addEventListener('click', () => {
-      window.focus();
+      if (cloudCanvas) cloudCanvas.focus();
     });
+    if (cloudCanvas) {
+      cloudCanvas.addEventListener('pointerdown', () => {
+        cloudCanvas.focus();
+      });
+    }
 
     let isFastForwardActive = false;
     function toggleFastForward(force) {
@@ -1660,11 +2089,11 @@
     }
 
     function changeScaleMode(mode) {
-      if (mode === 'cover') {
-        cloudImg.classList.add('scale-cover');
-      } else {
-        cloudImg.classList.remove('scale-cover');
-      }
+      const targets = [cloudCanvas, cloudImg].filter(Boolean);
+      targets.forEach(el => {
+        if (mode === 'cover') el.classList.add('scale-cover');
+        else el.classList.remove('scale-cover');
+      });
       localStorage.setItem('retro_scale_mode', mode);
     }
 
@@ -1706,11 +2135,13 @@
       const btn = el.dataset.btn;
       const handlePress = (e) => {
         e.preventDefault();
+        try { el.setPointerCapture(e.pointerId); } catch (_) {}
         sendInput(btn, 1);
         el.classList.add('pressed');
       };
       const handleRelease = (e) => {
         e.preventDefault();
+        try { el.releasePointerCapture(e.pointerId); } catch (_) {}
         sendInput(btn, 0);
         el.classList.remove('pressed');
       };
@@ -1829,6 +2260,7 @@
 
     // Initial setup from localStorage
     initKeyConfig();
+    initDesktopBarClicks();
     const savedScale = localStorage.getItem('retro_scale_mode');
     if (savedScale) {
       changeScaleMode(savedScale);

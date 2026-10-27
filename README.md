@@ -320,11 +320,20 @@ Unlike web player wrappers (e.g. EmulatorJS) that only execute WebAssembly insid
 
 ### Multi-User Arcade Queue & Spectator Mode
 
-Because Snapdragon 410 possesses 1 physical GPU core, public deployments implement an **Arcade-Cabinet FIFO Queue**:
-- **Exclusive Gamepad Turn**: 1 active controller holds exclusive Adreno 306 GPU input control (default: 6-minute turn, auto-yield on 45s idle).
+- **Exclusive Gamepad Turn**: 1 active controller holds exclusive Adreno 306 GPU input control, with automatic unlimited-play badge detection when no queue is waiting.
 - **Zero-Latency Live Spectator Stream**: Waiting players watch the active player's screen in real-time at 60 FPS with live cheering HUD.
+- **Instant Cross-Browser Takeover**: Switching from phone, tablet, or another browser? Simply tap `[🎮 Takeover]` to seamlessly seize input control without restarting the game.
+- **Pixel-Perfect Absolute Centering (Safari WebKit & Chrome)**: Absolute coordinate transform positioning completely eliminates Safari WebKit's double-centering flex layout displacement bug.
+- **Lossless 4:4:4 Chroma Subsampling**: Zero chroma subsampling (`subsampling=0`) with CSS crisp-edge nearest-neighbor filtering preserves genuine retro pixel art fidelity.
 - **Automatic Promotion**: Seamless promotion to active player upon session timeout, voluntary exit, or heartbeat loss.
 - **Dual-Mode Bypass**: Players can click *"⚡ Instant WASM Mode"* to switch immediately to client-side emulation with zero wait time.
+
+#### One-Command Deployment to Stick
+
+Run the included deployment script to sync all engine files, web UI, systemd auto-start services, and optional Cloudflare tunnel:
+```bash
+./scripts/deploy_cloud_console.sh [stick_ip_or_hostname]
+```
 
 A full production-grade engine implementation is provided in [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py).
 

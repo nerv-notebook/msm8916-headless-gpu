@@ -13,22 +13,39 @@ import threading
 import subprocess
 import urllib.request
 import urllib.error
+import socket
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKER_SCRIPT = os.path.join(BASE_DIR, "game_worker.py")
 PYTHON_BIN = sys.executable
 
 class SlotManager:
-    def __init__(self, max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=60):
+    def __init__(self, max_slots=1, idle_timeout_sec=30, max_turn_sec=3600, dc_timeout_sec=20):
         self.max_slots = max_slots
         self.idle_timeout_sec = idle_timeout_sec
         self.max_turn_sec = max_turn_sec
         self.dc_timeout_sec = dc_timeout_sec
         
+        # Fast UDP socket for zero-thread microsecond input forwarding
+        self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
         # slots: {0: None, 1: None}
         self.slots = {i: None for i in range(max_slots)}
         self.waiting_queue = [] # [{session_id, player_name, joined_at, last_heartbeat, game_req}]
         self.lock = threading.Lock()
+
+        # Background ticker runs every 2s to proactively clean up disconnected sessions
+        self.ticker = threading.Thread(target=self._ticker_loop, daemon=True)
+        self.ticker.start()
+
+    def _ticker_loop(self):
+        while True:
+            time.sleep(2.0)
+            try:
+                with self.lock:
+                    self._tick()
+            except Exception:
+                pass
 
     def _get_worker_port(self, slot_id):
         return 8091 + slot_id
@@ -87,7 +104,14 @@ class SlotManager:
             self.slots[slot_id] = None
             print(f"[SlotManager] Slot {slot_id} freed.")
 
-    def join(self, session_id, player_name="", rel_path="", system="nes", title="", roms_dir=""):
+    def reset_all(self):
+        with self.lock:
+            for slot_id in list(self.slots.keys()):
+                self._stop_slot(slot_id)
+            self.waiting_queue.clear()
+            print("[SlotManager] All slots and queues forcefully reset by user request.")
+
+    def join(self, session_id, player_name="", rel_path="", system="nes", title="", roms_dir="", force_restart=False):
         with self.lock:
             self._tick()
             now = time.time()
@@ -95,10 +119,27 @@ class SlotManager:
                 player_name = f"玩家 #{session_id[-4:].upper()}"
 
             full_path = os.path.normpath(os.path.join(roms_dir, rel_path)) if rel_path else ""
+            if not full_path or not os.path.isfile(full_path):
+                default_rel = "nes/super_mario_bros.nes"
+                default_full = os.path.normpath(os.path.join(roms_dir, default_rel))
+                if os.path.isfile(default_full):
+                    full_path = default_full
+                    rel_path = default_rel
+                    system = "nes"
+                    title = title or "超级马里奥兄弟"
 
             # 1. Player already occupies an active slot
-            for slot_id, slot in self.slots.items():
+            for slot_id, slot in list(self.slots.items()):
                 if slot and slot["session_id"] == session_id:
+                    if force_restart:
+                        print(f"[SlotManager] Player {player_name} requested forced restart of slot {slot_id}")
+                        self._stop_slot(slot_id)
+                        break
+                    proc = slot.get("process")
+                    if proc and proc.poll() is not None:
+                        print(f"[SlotManager] Worker {slot_id} process died, respawning fresh...")
+                        self._stop_slot(slot_id)
+                        break
                     slot["last_heartbeat"] = now
                     # If game changed, reload worker
                     if full_path and slot["rom_path"] != full_path:
@@ -195,17 +236,45 @@ class SlotManager:
                     self._stop_slot(slot_id)
                     self._promote_next(slot_id)
                     return True
-            self.waiting_queue = [q for q in self.waiting_queue if q["session_id"] != session_id]
-            return True
+    def takeover_slot(self, session_id, player_name=""):
+        with self.lock:
+            for slot_id, slot in self.slots.items():
+                if slot is not None:
+                    old_session = slot["session_id"]
+                    print(f"[SlotManager] Session {session_id} took over Slot {slot_id} from {old_session}")
+                    slot["session_id"] = session_id
+                    if player_name:
+                        slot["player_name"] = player_name
+                    slot["last_heartbeat"] = time.time()
+                    slot["last_input"] = time.time()
+                    slot["last_seq"] = 0
+                    return {
+                        "status": "ok",
+                        "message": f"Successfully took over slot {slot_id}",
+                        "slot_id": slot_id,
+                        "title": slot.get("title", ""),
+                        "system": slot.get("system", "")
+                    }
+            return {"status": "error", "message": "No active game session found to take over"}
 
-    def forward_input(self, session_id, btn, state):
+    def forward_input(self, session_id, btn, state, active_buttons=None, seq=0):
         with self.lock:
             for slot_id, slot in self.slots.items():
                 if slot and slot["session_id"] == session_id:
+                    if seq > 0:
+                        if seq < slot.get("last_seq", 0):
+                            return True
+                        slot["last_seq"] = seq
                     slot["last_input"] = time.time()
                     port = slot["port"]
-                    # Forward non-blocking
-                    threading.Thread(target=self._send_input_http, args=(port, btn, state), daemon=True).start()
+                    try:
+                        if active_buttons is not None:
+                            payload = f"SYNC:{','.join(active_buttons)}".encode("ascii")
+                        else:
+                            payload = f"{btn}:{state}".encode("ascii")
+                        self.udp_sock.sendto(payload, ("127.0.0.1", port))
+                    except Exception:
+                        threading.Thread(target=self._send_input_http, args=(port, btn, state), daemon=True).start()
                     return True
             return False
 
@@ -273,6 +342,14 @@ class SlotManager:
 
         for slot_id, slot in list(self.slots.items()):
             if not slot:
+                continue
+
+            # Check if worker process crashed or exited
+            proc = slot.get("process")
+            if proc and proc.poll() is not None:
+                print(f"[SlotManager] Slot {slot_id} worker died unexpectedly, cleaning up.")
+                self._stop_slot(slot_id)
+                self._promote_next(slot_id)
                 continue
 
             # 1. Disconnect check

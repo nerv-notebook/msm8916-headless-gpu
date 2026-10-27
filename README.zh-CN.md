@@ -352,11 +352,20 @@ python3 scripts/test_adreno_3d.py
 
 ### 8.2 多人分享防挤爆：街机排队机制与实时观战系统 (Arcade Queue & Spectator Mode)
 
-由于骁龙 410 板载只有 1 颗物理 GPU 核心，当将云游戏公网链接分享给众多好友或社区玩家时，系统实现了**街机厅式的投币轮流排队机制 (FIFO Queue)**：
-- **独占操控轮次 (Arcade Turn)**：当前玩家拥有 Adreno 306 独占操控权，默认每轮限制 6 分钟，若闲置超过 45 秒自动礼让下一位。
+- **独占操控轮次 (Arcade Turn)**：当前玩家拥有 Adreno 306 独占操控权，支持自动识别并显示无限畅玩状态。
 - **多人零延迟观战模式 (Live Spectator Mode)**：排队中的所有观众均可实时接收 60 FPS 游戏画面串流，直观看到当前高玩的走位与操作，并显示排队顺位与预计等待倒计时。
+- **跨端一键接管控制 (Instant Session Takeover)**：从其他设备或浏览器切换进入时，点击 `[🎮 接管控制]` 即可无缝接手正在运行中的游戏，无需重启进程。
+- **全浏览器高精度绝对居中 (Safari WebKit & Chrome)**：采用纯绝对居中物理坐标排版，彻底解决 Safari WebKit 在高刷新率/缩放下的双重居中偏屏 Bug。
+- **4:4:4 高保真像素渲染 (Lossless Chroma Subsampling)**：串流采用无损色度采样（`subsampling=0`），配合 CSS 点对点锐化与 Canvas 抗锯齿关闭，呈现原汁原味像素怀旧画质。
 - **自动顺位晋升 (Automatic Promotion)**：当前玩家时间到、主动退出或网络断开时，系统毫秒级将排队第 1 位晋升为主控玩家，弹出通知并无缝解锁手柄与按键。
 - **免排队极速切换 (Instant WASM Mode)**：不想排队的用户，可一键点击“⚡ 免排队玩单机”，瞬间切换为基于浏览器 WebAssembly 的独立单机版，零秒等待即刻开打。
+
+#### 一键极速部署至随身 WiFi
+
+只需运行配套的一键部署脚本，即可自动同步前端资源、配置 Systemd 服务并开启 Cloudflare 公网穿透：
+```bash
+./scripts/deploy_cloud_console.sh [随身WiFi_IP_或主机名]
+```
 
 完整的生产级云游戏与排队调度代码可直接查阅 [`examples/cloud_gaming/cloud_engine.py`](examples/cloud_gaming/cloud_engine.py)。
 

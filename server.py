@@ -44,7 +44,7 @@ for s in ["gba", "nes", "snes", "gbc", "segaMD"]:
 # Multi-Slot Concurrent Hardware-Accelerated Adreno 306 Cloud Gaming Engine
 try:
     from slot_manager import SlotManager
-    slot_mgr = SlotManager(max_slots=2, idle_timeout_sec=60, max_turn_sec=1200, dc_timeout_sec=60)
+    slot_mgr = SlotManager(max_slots=1, idle_timeout_sec=30, max_turn_sec=3600, dc_timeout_sec=20)
 except Exception as e:
     print(f"[WARN] SlotManager initialization failed: {e}", file=sys.stderr)
     slot_mgr = None
@@ -265,6 +265,12 @@ class RetroHandler(BaseHTTPRequestHandler):
             if cloud_engine:
                 cloud_engine.stop_game()
             return self.send_json_response({"status": "ok", "message": "Cloud session stopped"})
+        elif path == "/api/cloud/reset":
+            if slot_mgr:
+                slot_mgr.reset_all()
+            return self.send_json_response({"status": "ok", "message": "All slots reset"})
+        elif path == "/api/cloud/takeover":
+            return self.handle_cloud_takeover()
         elif path == "/api/cloud/input":
             return self.handle_cloud_input()
         else:
@@ -451,7 +457,8 @@ class RetroHandler(BaseHTTPRequestHandler):
         title = payload.get("title", "")
         session_id = payload.get("session_id", "")
         player_name = payload.get("player_name", "")
-        info = slot_mgr.join(session_id, player_name, rel_path=rel_path, system=system, title=title, roms_dir=ROMS_DIR)
+        force_restart = bool(payload.get("force_restart", False))
+        info = slot_mgr.join(session_id, player_name, rel_path=rel_path, system=system, title=title, roms_dir=ROMS_DIR, force_restart=force_restart)
         self.send_json_response({"status": "ok", "message": f"Ready: {title}", "queue": info})
 
     def handle_cloud_input(self):
@@ -464,8 +471,21 @@ class RetroHandler(BaseHTTPRequestHandler):
         state = int(payload.get("state", 0))
         session_id = payload.get("session_id", None)
         active = payload.get("active", None)
-        ok = slot_mgr.forward_input(session_id, btn, state, active_buttons=active)
+        seq = int(payload.get("seq", 0))
+        ok = slot_mgr.forward_input(session_id, btn, state, active_buttons=active, seq=seq)
         self.send_json_response({"status": "ok" if ok else "blocked"})
+
+    def handle_cloud_takeover(self):
+        content_len = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_len).decode("utf-8")
+        payload = json.loads(body) if body else {}
+        session_id = payload.get("session_id", None)
+        player_name = payload.get("player_name", "")
+        if not slot_mgr:
+            self.send_json_response({"status": "error", "message": "Slot manager unavailable"}, HTTPStatus.SERVICE_UNAVAILABLE)
+            return
+        res = slot_mgr.takeover_slot(session_id, player_name)
+        self.send_json_response(res)
 
     def handle_save_upload(self, game_id):
         content_len = int(self.headers.get("Content-Length", 0))
@@ -546,6 +566,10 @@ class RetroHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", mime_type)
         self.send_header("Content-Length", str(len(content)))
+        if "html" in mime_type or "json" in mime_type:
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         self.send_cors_headers()
         self.end_headers()
         self.wfile.write(content)
